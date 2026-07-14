@@ -4,7 +4,7 @@
 import { pipeline } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.3.3";
 
 const MODELO_ID = "jotaah/tejepalabras-onnx";
-const UMBRAL = 47.5;
+const UMBRAL = 41.5;
 const SIM_OBJETIVO_MIN = 20;
 const SIM_OBJETIVO_MAX = 30;
 

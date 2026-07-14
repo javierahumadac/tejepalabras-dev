@@ -252,12 +252,25 @@ body.entrada-activa footer {
 .modal-cabecera {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 12px;
   gap: 8px;
 }
+.modal-titulo-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
 .modal-cabecera strong {
-  font-size: 16px;
+  font-size: 18px;
+  line-height: 1.2;
+}
+.modal-subtitulo {
+  font-size: 13px;
+  font-weight: 400;
+  color: #888;
+  line-height: 1.2;
 }
 .modal-cabecera .btn-cerrar { padding: 0; }
 .modal-cuerpo {
@@ -272,4 +285,54 @@ body.entrada-activa footer {
 .modal-cuerpo em {
   font-style: normal;
   color: #eee;
+}
+.modal-pie {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #2a2a2a;
+  text-align: center;
+}
+.modal-creditos {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: #666;
+}
+.modal-creditos a {
+  color: #888;
+  text-decoration: none;
+}
+.modal-creditos a:hover {
+  color: #bbb;
+  text-decoration: underline;
+}
+.modal-enlaces {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 18px;
+}
+.modal-enlaces a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  text-decoration: none;
+  line-height: 1;
+  transition: color 0.15s ease;
+}
+.modal-enlaces a:hover {
+  color: #eee;
+}
+.modal-enlaces .bi {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.icono-marca {
+  display: inline-block;
+  width: 1.25rem;
+  height: 1.25rem;
+  background-color: currentColor;
+  mask: url("icons/huggingface.svg") center / contain no-repeat;
+  -webkit-mask: url("icons/huggingface.svg") center / contain no-repeat;
 }

@@ -10,7 +10,7 @@ no afiliado ni respaldado por sus autores.
 
 1. El juego elige dos palabras objetivo (origen y destino).
 2. Escribes palabras en español que actúen de puente entre ellas.
-3. Si dos palabras del tablero son semánticamente parecidas (similitud > 47,5%), se dibuja un enlace.
+3. Si dos palabras del tablero son semánticamente parecidas (similitud > 41,5%), se dibuja un enlace.
 4. Ganas cuando origen y destino quedan conectados en el grafo.
 
 ## Tecnología

@@ -57,7 +57,10 @@
     <div class="modal-fondo" data-cerrar-ayuda></div>
     <div class="modal-caja">
       <div class="modal-cabecera">
-        <strong id="ayuda-titulo">Tejepalabras: cómo se juega</strong>
+        <div class="modal-titulo-wrap">
+          <strong id="ayuda-titulo">Tejepalabras</strong>
+          <span class="modal-subtitulo">Cómo se juega</span>
+        </div>
         <button type="button" id="ayuda-cerrar" class="btn-icono btn-cerrar" aria-label="Cerrar">
           <i class="bi bi-x-lg" aria-hidden="true"></i>
         </button>
@@ -65,8 +68,24 @@
       <div class="modal-cuerpo">
         <p>Tienes dos palabras: un <em>origen</em> y un <em>destino</em>. El objetivo es conectarlas enlazando palabras.</p>
         <p>Dos palabras se enlazan si son similares. El modelo mide qué tan cercanas son por significado, no por ortografía.</p>
-        <p>Escribe una palabra en la entrada y pulsa Enter. Si enlaza con alguna del tablero, aparecerá un hilo entre ellas. Ganas cuando origen y destino quedan en la misma red.</p>
-        <p>Toca un nodo para ver sus similitudes con el resto. El botón de reinicio empieza otra partida.</p>
+        <p>Envía una palabra y si es similar a alguna del tablero, aparecerá un hilo entre ellas. Ganas cuando origen y destino queden en la misma red.</p>
+        <p>Toca un nodo para ver sus similitudes con el resto y su significado. El botón de reinicio empieza otra partida.</p>
+      </div>
+      <div class="modal-pie">
+        <p class="modal-creditos">
+          Inspirado en <a href="https://linxicon.com/" target="_blank" rel="noopener noreferrer">Linxicon</a>
+        </p>
+        <div class="modal-enlaces">
+          <a href="https://github.com/javierahumadac/tejepalabras" target="_blank" rel="noopener noreferrer" aria-label="Código en GitHub" title="GitHub">
+            <i class="bi bi-github" aria-hidden="true"></i>
+          </a>
+          <a href="https://huggingface.co/jotaah/tejepalabras-onnx" target="_blank" rel="noopener noreferrer" aria-label="Modelo en Hugging Face" title="Hugging Face">
+            <span class="icono-marca" aria-hidden="true"></span>
+          </a>
+          <a href="https://www.linkedin.com/in/javier-ahumada-c/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn de Javier Ahumada" title="LinkedIn">
+            <i class="bi bi-linkedin" aria-hidden="true"></i>
+          </a>
+        </div>
       </div>
     </div>
   </div>
