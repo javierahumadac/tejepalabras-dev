@@ -333,6 +333,29 @@ function colocarNodoNuevo(p, aristas) {
   }
 }
 
+function nodosDentroDePantalla(margen = 16) {
+  const w = cy.width();
+  const h = cy.height();
+  return cy.nodes().every((n) => {
+    const bb = n.renderedBoundingBox({ includeLabels: true });
+    return (
+      bb.x1 >= margen &&
+      bb.y1 >= margen &&
+      bb.x2 <= w - margen &&
+      bb.y2 <= h - margen
+    );
+  });
+}
+
+function asegurarNodosVisibles() {
+  if (!cy.nodes().length || nodosDentroDePantalla()) return;
+  cy.animate({
+    fit: { eles: cy.nodes(), padding: 40 },
+    duration: 280,
+    easing: "ease-out",
+  });
+}
+
 function componenteConecta(aristas) {
   const padre = {};
   const find = (x) => (padre[x] === x ? x : (padre[x] = find(padre[x])));
@@ -433,6 +456,7 @@ async function colocar(p) {
   cy.add({ data: { id: p } });
   const aristas = await reconstruir();
   colocarNodoNuevo(p, aristas);
+  asegurarNodosVisibles();
 
   if (conecta) mensaje(`“${p}” conectada`, "ok");
   else mensaje(`“${p}” sin enlaces todavía`);
@@ -474,7 +498,11 @@ function mensajeSugerencia(palabra, sugerencias) {
       chip.type = "button";
       chip.className = "sugerencia";
       chip.textContent = s;
-      chip.addEventListener("click", () => anadirPalabra(s));
+      chip.addEventListener("mousedown", (e) => e.preventDefault());
+      chip.addEventListener("click", async () => {
+        await anadirPalabra(s);
+        $("#entrada").focus();
+      });
       el.appendChild(chip);
       if (i < sugerencias.length - 1) el.appendChild(document.createTextNode(", "));
     });
@@ -500,6 +528,16 @@ function registrarEventos() {
   $("#panel-cerrar").addEventListener("click", () =>
     $("#panel").classList.add("oculto")
   );
+
+  const ayuda = $("#ayuda");
+  const abrirAyuda = () => ayuda.classList.remove("oculto");
+  const cerrarAyuda = () => ayuda.classList.add("oculto");
+  $("#btn-ayuda").addEventListener("click", abrirAyuda);
+  $("#ayuda-cerrar").addEventListener("click", cerrarAyuda);
+  ayuda.querySelector("[data-cerrar-ayuda]").addEventListener("click", cerrarAyuda);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !ayuda.classList.contains("oculto")) cerrarAyuda();
+  });
 }
 
 iniciar();

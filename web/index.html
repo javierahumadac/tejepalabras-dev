@@ -9,20 +9,21 @@
 </head>
 <body>
   <header>
+    <button id="btn-ayuda" type="button" aria-label="Cómo se juega" title="Cómo se juega">?</button>
     <span id="origen">–</span>
     <span id="estado-flecha" class="flecha">⋯</span>
     <span id="destino">–</span>
     <button id="btn-nuevo" type="button">nuevo</button>
   </header>
+  <p id="umbral-info" class="umbral-info"></p>
 
   <div id="grafo"></div>
 
   <footer>
+    <p id="mensaje" class="mensaje"></p>
     <form id="form-palabra" autocomplete="off">
       <input id="entrada" placeholder="palabra puente…" autocomplete="off" spellcheck="false" />
     </form>
-    <p id="mensaje" class="mensaje"></p>
-    <p id="umbral-info" class="umbral-info"></p>
     <p class="creditos">
       Inspirado en <a href="https://linxicon.com/" target="_blank" rel="noopener noreferrer">Linxicon</a>
     </p>
@@ -38,6 +39,22 @@
     </div>
     <ul id="panel-lista"></ul>
   </aside>
+
+  <div id="ayuda" class="modal oculto" role="dialog" aria-modal="true" aria-labelledby="ayuda-titulo">
+    <div class="modal-fondo" data-cerrar-ayuda></div>
+    <div class="modal-caja">
+      <div class="modal-cabecera">
+        <strong id="ayuda-titulo">Tejepalabras: cómo se juega</strong>
+        <button type="button" id="ayuda-cerrar" aria-label="Cerrar">×</button>
+      </div>
+      <div class="modal-cuerpo">
+        <p>Tienes dos palabras: un <em>origen</em> y un <em>destino</em>. El objetivo es conectarlas enlazando palabras.</p>
+        <p>Dos palabras se enlazan si su son similares. El modelo mide qué tan cercanas son por significado, no por ortografía.</p>
+        <p>Escribe una palabra en la entrada y pulsa Enter. Si enlaza con alguna del tablero, aparecerá un hilo entre ellas. Ganas cuando origen y destino quedan en la misma red.</p>
+        <p>Toca un nodo para ver sus similitudes con el resto. El botón <em>nuevo</em> empieza otra partida.</p>
+      </div>
+    </div>
+  </div>
 
   <script type="module" src="juego.js"></script>
 </body>
