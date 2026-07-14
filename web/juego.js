@@ -154,7 +154,7 @@ async function iniciar() {
   crearCytoscape();
   registrarEventos();
   bloquearEntrada(true);
-  mensaje("cargando modelo… (solo la primera vez)");
+  mensaje("cargando modelo…");
   try {
     await cargarModelo();
   } catch (e) {
