@@ -153,9 +153,16 @@ function producto(a, b) {
   return s;
 }
 
+function actualizarUmbralInfo() {
+  let texto = `Enlace mínimo: ${UMBRAL}% de similitud.`;
+  const n = enTablero.size - 2;
+  if (n > 0) texto += `<br>Actualmente hay ${n} palabra${n === 1 ? "" : "s"} en el tablero.`;
+  $("#umbral-info").innerHTML = texto;
+}
+
 async function iniciar() {
   await cargarDiccionario();
-  $("#umbral-info").textContent = `Enlace mínimo: ${UMBRAL}% de similitud`;
+  actualizarUmbralInfo();
   crearCytoscape();
   registrarEventos();
   bloquearEntrada(true);
@@ -353,6 +360,7 @@ function actualizarMenuModos() {
   document.querySelectorAll(".menu-modo-opcion").forEach((btn) => {
     btn.classList.toggle("activo", btn.dataset.modo === modo);
   });
+  actualizarUmbralInfo();
 }
 
 async function elegirObjetivos(rng = Math.random) {
@@ -635,7 +643,7 @@ async function mostrarPanel(palabra) {
 function mensajeSugerencia(palabra, sugerencias) {
   const el = $("#mensaje");
   el.className = "mensaje error";
-  el.innerHTML = `“${palabra}” no es una palabra correcta.`;
+  el.innerHTML = `“${palabra}” no se encuentra en el diccionario.<br>`;
   if (sugerencias.length) {
     el.innerHTML += " ¿Quisiste decir ";
     sugerencias.forEach((s, i) => {
