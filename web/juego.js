@@ -18,6 +18,44 @@ let enTablero = new Set();
 let cy = null;
 let ganado = false;
 
+const MODO_DIARIO = "diario";
+const MODO_PRACTICA = "practica";
+let modo = MODO_DIARIO;
+
+// PRNG determinístico (mulberry32) sembrado con la fecha de hoy: mismo
+// resultado para todo el mundo el mismo día, sin backend ni build extra.
+function seedDesdeTexto(str) {
+  let h = 1779033703 ^ str.length;
+  for (let i = 0; i < str.length; i++) {
+    h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+    h = (h << 13) | (h >>> 19);
+  }
+  return h >>> 0;
+}
+
+function mulberry32(semilla) {
+  let a = semilla;
+  return function () {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function fechaHoyStr() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dia = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dia}`;
+}
+
+function rngDelDia() {
+  return mulberry32(seedDesdeTexto(fechaHoyStr()));
+}
+
 let extractor = null;
 const cacheEmb = new Map();
 let diccionario = new Set();
@@ -123,7 +161,7 @@ async function iniciar() {
     return mensaje("no se pudo cargar el modelo", "error");
   }
   bloquearEntrada(false);
-  await nuevoJuego();
+  await nuevoJuego(true);
 }
 
 function bloquearEntrada(bloquear) {
@@ -218,6 +256,40 @@ function crearCytoscape() {
         selector: "node.conectado",
         style: { "border-color": "#3dd68c", "border-width": 2 },
       },
+      {
+        selector: "node.captura",
+        style: {
+          label: "",
+          "text-opacity": 0,
+          width: 36,
+          height: 36,
+          padding: 0,
+          "border-width": 0,
+          "corner-radius": 4,
+          "background-color": "#444",
+        },
+      },
+      {
+        selector: "node.captura.objetivo",
+        style: {
+          label: "data(id)",
+          "text-opacity": 1,
+          color: "#111",
+          "font-weight": 700,
+          width: "label",
+          height: 32,
+          padding: 8,
+          "background-color": "#ccc",
+        },
+      },
+      {
+        selector: "node.captura.conectado",
+        style: { "background-color": "#3dd68c" },
+      },
+      {
+        selector: "edge.captura",
+        style: { label: "", "text-opacity": 0 },
+      },
     ],
   });
 
@@ -227,15 +299,17 @@ function crearCytoscape() {
   });
 }
 
-async function nuevoJuego() {
+async function nuevoJuego(diario = false) {
   if (!extractor) return;
   ganado = false;
   extra = {};
+  modo = diario ? MODO_DIARIO : MODO_PRACTICA;
   $("#panel").classList.add("oculto");
   ocultarCompartir();
   bloquearEntrada(false);
   mensaje("preparando partida…");
-  [origen, destino] = await elegirObjetivos();
+  const rng = diario ? rngDelDia() : Math.random;
+  [origen, destino] = await elegirObjetivos(rng);
   enTablero = new Set([origen, destino]);
   $("#origen").textContent = origen;
   $("#destino").textContent = destino;
@@ -246,14 +320,26 @@ async function nuevoJuego() {
   ]);
   await reconstruir();
   ejecutarLayout();
+  actualizarEtiquetaModo();
   mensaje("");
   $("#entrada").focus();
 }
 
-async function elegirObjetivos() {
+function actualizarEtiquetaModo() {
+  const el = $("#modo-info");
+  if (!el) return;
+  if (modo === MODO_DIARIO) {
+    const texto = new Date().toLocaleDateString("es", { day: "numeric", month: "long" });
+    el.textContent = `Reto del día · ${texto}`;
+  } else {
+    el.textContent = "Modo práctica (aleatorio)";
+  }
+}
+
+async function elegirObjetivos(rng = Math.random) {
   for (let intento = 0; intento < 500; intento++) {
-    const a = palabrasPool[(Math.random() * palabrasPool.length) | 0];
-    const b = palabrasPool[(Math.random() * palabrasPool.length) | 0];
+    const a = palabrasPool[(rng() * palabrasPool.length) | 0];
+    const b = palabrasPool[(rng() * palabrasPool.length) | 0];
     if (a === b) continue;
     const s = await asegurarSim(a, b);
     if (s >= SIM_OBJETIVO_MIN && s <= SIM_OBJETIVO_MAX) return [a, b];
@@ -570,19 +656,27 @@ async function esperarRepintado() {
 
 async function capturarGrafo() {
   $("#panel").classList.add("oculto");
-  cy.fit(cy.elements(), 40);
+  cy.nodes().addClass("captura");
+  cy.edges().addClass("captura");
+  cy.fit(cy.nodes(), 40);
   await esperarRepintado();
-  return cy.png({
-    output: "blob-promise",
-    bg: "#111111",
-    full: true,
-    scale: 2,
-  });
+  try {
+    return await cy.png({
+      output: "blob-promise",
+      bg: "#111111",
+      full: true,
+      scale: 2,
+    });
+  } finally {
+    cy.nodes().removeClass("captura");
+    cy.edges().removeClass("captura");
+  }
 }
 
 function textoCompartir() {
   const usadas = enTablero.size - 2;
-  return `Conecté «${origen}» con «${destino}» en Tejepalabras con ${usadas} palabra${usadas === 1 ? "" : "s"} puente.`;
+  const etiqueta = modo === MODO_DIARIO ? " (reto del día)" : "";
+  return `Conecté '${origen}' con '${destino}'${etiqueta} en Tejepalabras con ${usadas} palabra${usadas === 1 ? "" : "s"}.`;
 }
 
 async function compartirVictoria() {
@@ -670,7 +764,7 @@ function registrarEventos() {
     entrada.value = "";
     await anadirPalabra(valor);
   });
-  $("#btn-nuevo").addEventListener("click", nuevoJuego);
+  $("#btn-nuevo").addEventListener("click", () => nuevoJuego(false));
   $("#btn-compartir").addEventListener("click", () => void compartirVictoria());
   $("#panel-cerrar").addEventListener("click", () =>
     $("#panel").classList.add("oculto")

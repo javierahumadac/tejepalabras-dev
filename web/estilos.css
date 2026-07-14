@@ -104,9 +104,10 @@ footer {
 #btn-compartir {
   flex-shrink: 0;
   padding: 4px;
+  color: #8a1c36;
 }
 #btn-compartir .bi { font-size: 1.15rem; }
-#btn-compartir:not(:disabled):hover { color: #3dd68c; }
+#btn-compartir:not(:disabled):hover { color: #a82845; }
 #btn-compartir:disabled { opacity: 0.6; cursor: wait; }
 
 .mensaje {
@@ -126,6 +127,16 @@ footer {
   padding: 0 16px;
   font-size: 11px;
   color: #404040;
+}
+
+.modo-info {
+  flex-shrink: 0;
+  text-align: center;
+  margin: 0 0 2px;
+  padding: 0 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #888;
 }
 
 .sugerencia {
@@ -155,6 +166,7 @@ footer {
 }
 
 body.entrada-activa .umbral-info,
+body.entrada-activa .modo-info,
 body.entrada-activa .creditos {
   display: none;
 }
