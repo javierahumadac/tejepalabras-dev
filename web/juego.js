@@ -4,9 +4,9 @@
 import { pipeline } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.3.3";
 
 const MODELO_ID = "jotaah/tejepalabras-onnx";
-const UMBRAL = 41.5;
+const UMBRAL = 43.5;
 const SIM_OBJETIVO_MIN = 20;
-const SIM_OBJETIVO_MAX = 30;
+const SIM_OBJETIVO_MAX = 25;
 
 const GRADO_MAX = 10; // los enlaces "se rompen" si un nodo acumula demasiados
 
