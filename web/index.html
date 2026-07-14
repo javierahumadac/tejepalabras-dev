@@ -20,12 +20,11 @@
       </span>
       <span id="destino">–</span>
     </div>
-    <button id="btn-nuevo" class="btn-icono" type="button" aria-label="Practicar con palabras aleatorias" title="Practicar (aleatorio)">
-      <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+    <button id="btn-nuevo" class="btn-icono" type="button" aria-label="Modo de juego" aria-haspopup="dialog" aria-controls="menu-modos" title="Modo de juego">
+      <i class="bi bi-list" aria-hidden="true"></i>
     </button>
   </header>
   <p id="modo-info" class="modo-info"></p>
-  <p id="umbral-info" class="umbral-info"></p>
 
   <div id="grafo"></div>
 
@@ -33,7 +32,7 @@
     <p id="mensaje" class="mensaje"></p>
     <form id="form-palabra" autocomplete="off">
       <input id="entrada" placeholder="palabra puente…" autocomplete="off" spellcheck="false" />
-      <button id="btn-compartir" class="btn-icono oculto" type="button" aria-label="Compartir" title="Compartir">
+      <button id="btn-compartir" class="btn-icono" type="button" aria-label="Compartir" title="Compartir">
         <i class="bi bi-share" aria-hidden="true"></i>
       </button>
     </form>
@@ -73,7 +72,7 @@
         <p>Tienes dos palabras: un <em>origen</em> y un <em>destino</em>. El objetivo es conectarlas enlazando palabras.</p>
         <p>Dos palabras se enlazan si son similares. El modelo mide qué tan cercanas son por significado, no por ortografía.</p>
         <p>Envía una palabra y si es similar a alguna del tablero, aparecerá un hilo entre ellas. Ganas cuando origen y destino queden en la misma red.</p>
-        <p>Al entrar juegas el <em>reto del día</em>: las mismas dos palabras para todo el mundo, que cambian cada día. El botón de reinicio te lleva a practicar con un par aleatorio (recarga la página para volver al reto del día).</p>
+        <p>Al entrar juegas el <em>reto del día</em>: las mismas dos palabras para todo el mundo, que cambian cada día. Con el botón de la esquina superior derecha puedes cambiar entre el reto del día y el <em>modo práctica</em> (pares aleatorios).</p>
         <p>Toca un nodo para ver sus similitudes con el resto y su significado.</p>
         <p class="modal-privacidad">Uso analítica anónima con <a href="https://www.goatcounter.com/" target="_blank" rel="noopener noreferrer">GoatCounter</a> para contar visitas y registrar palabras rechazadas. No cookies.</p>
       </div>
@@ -96,10 +95,38 @@
     </div>
   </div>
 
+  <div id="menu-modos" class="modal oculto" role="dialog" aria-modal="true" aria-labelledby="menu-modos-titulo">
+    <div class="modal-fondo" data-cerrar-menu-modos></div>
+    <div class="modal-caja">
+      <div class="modal-cabecera">
+        <div class="modal-titulo-wrap">
+          <strong id="menu-modos-titulo">Tejepalabras</strong>
+          <span class="modal-subtitulo">Modo de juego</span>
+        </div>
+        <button type="button" id="menu-modos-cerrar" class="btn-icono btn-cerrar" aria-label="Cerrar">
+          <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div class="modal-cuerpo">
+        <div class="menu-modos-opciones">
+          <button type="button" class="menu-modo-opcion" data-modo="diario">
+            <i class="bi bi-calendar-event" aria-hidden="true"></i>
+            <span>Reto del día (<span id="menu-fecha-diario">–</span>)</span>
+          </button>
+          <button type="button" class="menu-modo-opcion" data-modo="practica">
+            <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+            <span>Modo práctica</span>
+          </button>
+        </div>
+        <p id="umbral-info" class="modal-umbral"></p>
+      </div>
+    </div>
+  </div>
+
   <!-- GOATCOUNTER_START -->
   <script data-goatcounter="%%GOATCOUNTER_ENDPOINT%%"
           async src="//gc.zgo.at/count.js"></script>
   <!-- GOATCOUNTER_END -->
-  <script type="module" src="juego.js?v=7"></script>
+  <script type="module" src="juego.js?v=11"></script>
 </body>
 </html>

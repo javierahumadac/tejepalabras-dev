@@ -52,6 +52,11 @@ function fechaHoyStr() {
   return `${y}-${m}-${dia}`;
 }
 
+function fechaHoyCorta() {
+  const [y, m, d] = fechaHoyStr().split("-");
+  return `${d}/${m}/${y}`;
+}
+
 function rngDelDia() {
   return mulberry32(seedDesdeTexto(fechaHoyStr()));
 }
@@ -161,7 +166,9 @@ async function iniciar() {
     return mensaje("no se pudo cargar el modelo", "error");
   }
   bloquearEntrada(false);
-  await nuevoJuego(true);
+  const parUrl = leerParamsPractica();
+  if (parUrl) await nuevoJuego(false, parUrl);
+  else await nuevoJuego(true);
 }
 
 function bloquearEntrada(bloquear) {
@@ -310,17 +317,20 @@ function crearCytoscape() {
   });
 }
 
-async function nuevoJuego(diario = false) {
+async function nuevoJuego(diario = false, par = null) {
   if (!extractor) return;
   ganado = false;
   extra = {};
   modo = diario ? MODO_DIARIO : MODO_PRACTICA;
   $("#panel").classList.add("oculto");
-  ocultarCompartir();
   bloquearEntrada(false);
   mensaje("preparando partida…");
-  const rng = diario ? rngDelDia() : Math.random;
-  [origen, destino] = await elegirObjetivos(rng);
+  if (par) {
+    [origen, destino] = par;
+  } else {
+    const rng = diario ? rngDelDia() : Math.random;
+    [origen, destino] = await elegirObjetivos(rng);
+  }
   enTablero = new Set([origen, destino]);
   $("#origen").textContent = origen;
   $("#destino").textContent = destino;
@@ -332,6 +342,7 @@ async function nuevoJuego(diario = false) {
   await reconstruir();
   ejecutarLayout();
   actualizarEtiquetaModo();
+  actualizarUrl();
   mensaje("");
   $("#entrada").focus();
 }
@@ -345,6 +356,15 @@ function actualizarEtiquetaModo() {
   } else {
     el.textContent = "Modo práctica (aleatorio)";
   }
+  actualizarMenuModos();
+}
+
+function actualizarMenuModos() {
+  const fechaEl = $("#menu-fecha-diario");
+  if (fechaEl) fechaEl.textContent = fechaHoyCorta();
+  document.querySelectorAll(".menu-modo-opcion").forEach((btn) => {
+    btn.classList.toggle("activo", btn.dataset.modo === modo);
+  });
 }
 
 async function elegirObjetivos(rng = Math.random) {
@@ -550,19 +570,14 @@ function ganar(aristas) {
   const usadas = enTablero.size - 2;
   mensaje(`conectado con ${usadas} palabra${usadas === 1 ? "" : "s"} puente`, "ok");
   bloquearEntrada(true);
-  if (puedeMostrarCompartir()) mostrarCompartir();
 }
 
-function puedeMostrarCompartir() {
-  return (
-    window.isSecureContext &&
-    matchMedia("(pointer: coarse)").matches &&
-    typeof navigator.share === "function"
-  );
+function esDispositivoTactil() {
+  return matchMedia("(pointer: coarse)").matches;
 }
 
-function mostrarCompartir() {
-  $("#btn-compartir")?.classList.remove("oculto");
+function puedeUsarWebShare() {
+  return window.isSecureContext && typeof navigator.share === "function";
 }
 
 async function anadirPalabra(cruda) {
@@ -658,15 +673,103 @@ function mensaje(txt, tipo = "") {
   el.className = "mensaje" + (tipo ? " " + tipo : "");
 }
 
+function leerParamsPractica() {
+  const params = new URLSearchParams(location.search);
+  const o = norm(params.get("origen") || "");
+  const d = norm(params.get("destino") || "");
+  if (!o || !d || o === d) return null;
+  if (!existeEnEspanol(o) || !existeEnEspanol(d)) return null;
+  return [o, d];
+}
+
+function actualizarUrl() {
+  const u = new URL(location.href);
+  u.hash = "";
+  if (modo === MODO_PRACTICA && origen && destino) {
+    u.searchParams.set("origen", origen);
+    u.searchParams.set("destino", destino);
+  } else {
+    u.search = "";
+  }
+  const destinoUrl = `${u.pathname}${u.search}`;
+  history.replaceState(null, "", destinoUrl || "/");
+}
+
 function urlJuego() {
   const u = new URL(location.href);
-  u.search = "";
   u.hash = "";
+  if (modo === MODO_PRACTICA && origen && destino) {
+    u.searchParams.set("origen", origen);
+    u.searchParams.set("destino", destino);
+  } else {
+    u.search = "";
+  }
   return u.href.replace(/\/$/, "") || u.origin;
 }
 
-function ocultarCompartir() {
-  $("#btn-compartir")?.classList.add("oculto");
+function etiquetaFecha() {
+  if (modo !== MODO_DIARIO) return "";
+  const [y, m, d] = fechaHoyStr().split("-");
+  return ` (${d}/${m}/${y})`;
+}
+
+function textoDesafio() {
+  return `Te desafío a unir '${origen}' con '${destino}'${etiquetaFecha()} en Tejepalabras.`;
+}
+
+function textoCompartir() {
+  const usadas = enTablero.size - 2;
+  return `Conecté '${origen}' con '${destino}'${etiquetaFecha()} en Tejepalabras con ${usadas} palabra${usadas === 1 ? "" : "s"}.`;
+}
+
+async function copiarPortapapeles(texto) {
+  await navigator.clipboard.writeText(texto);
+  mensaje("copiado al portapapeles", "ok");
+}
+
+async function compartirTextoUrl(texto) {
+  const url = urlJuego();
+  const completo = `${texto}\n${url}`;
+  if (esDispositivoTactil() && puedeUsarWebShare()) {
+    await navigator.share({ title: "Tejepalabras", text: completo, url });
+  } else {
+    await copiarPortapapeles(completo);
+  }
+}
+
+async function compartirVictoriaTactil() {
+  const url = urlJuego();
+  const text = `${textoCompartir()}\n${url}`;
+  const blob = await capturarGrafo();
+  const file = new File([blob], "tejepalabras.png", { type: "image/png" });
+  const conArchivo = { files: [file], title: "Tejepalabras", text };
+  if (navigator.canShare?.(conArchivo)) {
+    await navigator.share(conArchivo);
+  } else {
+    await navigator.share({ title: "Tejepalabras", text, url });
+  }
+}
+
+async function compartir() {
+  const btn = $("#btn-compartir");
+  btn.disabled = true;
+  try {
+    if (ganado) {
+      const url = urlJuego();
+      const text = `${textoCompartir()}\n${url}`;
+      if (esDispositivoTactil() && puedeUsarWebShare()) {
+        await compartirVictoriaTactil();
+      } else {
+        await copiarPortapapeles(text);
+      }
+    } else {
+      await compartirTextoUrl(textoDesafio());
+    }
+  } catch (e) {
+    if (e.name !== "AbortError") mensaje("no se pudo compartir", "error");
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 async function esperarRepintado() {
@@ -689,38 +792,6 @@ async function capturarGrafo() {
   } finally {
     cy.nodes().removeClass("captura");
     cy.edges().removeClass("captura");
-  }
-}
-
-function textoCompartir() {
-  const usadas = enTablero.size - 2;
-  let etiqueta = "";
-  if (modo === MODO_DIARIO) {
-    const [y, m, d] = fechaHoyStr().split("-");
-    etiqueta = ` (${d}/${m}/${y})`;
-  }
-  return `Conecté '${origen}' con '${destino}'${etiqueta} en Tejepalabras con ${usadas} palabra${usadas === 1 ? "" : "s"}.`;
-}
-
-async function compartirVictoria() {
-  if (!ganado || !puedeMostrarCompartir()) return;
-  const btn = $("#btn-compartir");
-  btn.disabled = true;
-  try {
-    const blob = await capturarGrafo();
-    const file = new File([blob], "tejepalabras.png", { type: "image/png" });
-    const url = urlJuego();
-    const text = `${textoCompartir()}\n${url}`;
-    const conArchivo = { files: [file], title: "Tejepalabras", text };
-    if (navigator.canShare?.(conArchivo)) {
-      await navigator.share(conArchivo);
-    } else {
-      await navigator.share({ title: "Tejepalabras", text, url });
-    }
-  } catch (e) {
-    if (e.name !== "AbortError") mensaje("no se pudo compartir", "error");
-  } finally {
-    btn.disabled = false;
   }
 }
 
@@ -777,6 +848,28 @@ function registrarViewport() {
   }
 }
 
+function registrarMenuModos() {
+  const modal = $("#menu-modos");
+  const abrir = () => {
+    actualizarMenuModos();
+    modal.classList.remove("oculto");
+  };
+  const cerrar = () => modal.classList.add("oculto");
+
+  $("#btn-nuevo").addEventListener("click", abrir);
+  $("#menu-modos-cerrar").addEventListener("click", cerrar);
+  modal.querySelector("[data-cerrar-menu-modos]").addEventListener("click", cerrar);
+
+  modal.querySelectorAll(".menu-modo-opcion").forEach((opcion) => {
+    opcion.addEventListener("click", async () => {
+      const elegido = opcion.dataset.modo;
+      cerrar();
+      if (elegido === modo) return;
+      await nuevoJuego(elegido === MODO_DIARIO);
+    });
+  });
+}
+
 function registrarEventos() {
   registrarViewport();
 
@@ -787,20 +880,24 @@ function registrarEventos() {
     entrada.value = "";
     await anadirPalabra(valor);
   });
-  $("#btn-nuevo").addEventListener("click", () => nuevoJuego(false));
-  $("#btn-compartir").addEventListener("click", () => void compartirVictoria());
+  registrarMenuModos();
+  $("#btn-compartir").addEventListener("click", () => void compartir());
   $("#panel-cerrar").addEventListener("click", () =>
     $("#panel").classList.add("oculto")
   );
 
   const ayuda = $("#ayuda");
+  const menuModos = $("#menu-modos");
   const abrirAyuda = () => ayuda.classList.remove("oculto");
   const cerrarAyuda = () => ayuda.classList.add("oculto");
+  const cerrarMenuModos = () => menuModos.classList.add("oculto");
   $("#btn-ayuda").addEventListener("click", abrirAyuda);
   $("#ayuda-cerrar").addEventListener("click", cerrarAyuda);
   ayuda.querySelector("[data-cerrar-ayuda]").addEventListener("click", cerrarAyuda);
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !ayuda.classList.contains("oculto")) cerrarAyuda();
+    if (e.key !== "Escape") return;
+    if (!menuModos.classList.contains("oculto")) cerrarMenuModos();
+    else if (!ayuda.classList.contains("oculto")) cerrarAyuda();
   });
 }
 
