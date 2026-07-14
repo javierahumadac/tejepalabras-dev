@@ -22,6 +22,15 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - name: Inyectar GoatCounter
+        env:
+          GOATCOUNTER_ENDPOINT: ${{ secrets.GOATCOUNTER_ENDPOINT }}
+        run: |
+          if [ -n "$GOATCOUNTER_ENDPOINT" ]; then
+            sed -i "s|%%GOATCOUNTER_ENDPOINT%%|${GOATCOUNTER_ENDPOINT}|g" web/index.html
+          else
+            sed -i '/<!-- GOATCOUNTER_START -->/,/<!-- GOATCOUNTER_END -->/d' web/index.html
+          fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

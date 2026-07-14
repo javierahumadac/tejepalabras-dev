@@ -286,6 +286,21 @@ body.entrada-activa footer {
   font-style: normal;
   color: #eee;
 }
+.modal-privacidad {
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid #2a2a2a;
+  font-size: 12px;
+  color: #777;
+}
+.modal-privacidad a {
+  color: #999;
+  text-decoration: none;
+}
+.modal-privacidad a:hover {
+  color: #bbb;
+  text-decoration: underline;
+}
 .modal-pie {
   margin-top: 16px;
   padding-top: 14px;

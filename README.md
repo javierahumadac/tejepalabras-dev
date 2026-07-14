@@ -34,3 +34,7 @@ En pocas palabras, el proceso fue:
 3. **Cuantizarlo:** Se redujo el tamaño del archivo (de ~400 MB a ~106 MB) para que la descarga sea razonable.
 
 En cada partida, el navegador calcula un vector por palabra y mide qué tan parecidas son dos palabras comparando esos vectores (similitud coseno). No compara letras ni ortografía: mira el significado.
+
+## Analítica (GoatCounter)
+
+El sitio publicado usa [GoatCounter](https://www.goatcounter.com/) para estadísticas anónimas de visitas y para registrar palabras rechazadas por el diccionario (por ejemplo, términos que un jugador cree que deberían existir). No usa cookies ni identifica a quien juega. El aviso al usuario está en el modal de ayuda.

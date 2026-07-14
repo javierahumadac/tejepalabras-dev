@@ -28,6 +28,17 @@ function norm(s) {
   return s.trim().toLowerCase().normalize("NFC");
 }
 
+function registrarPalabraRechazada(palabra) {
+  if (!window.goatcounter?.count) return;
+  if (palabra.length < 2 || palabra.length > 25) return;
+  if (!/^\p{L}+$/u.test(palabra)) return;
+  window.goatcounter.count({
+    path: `palabra-rechazada/${encodeURIComponent(palabra)}`,
+    title: palabra,
+    event: true,
+  });
+}
+
 async function cargarDiccionario() {
   const txt = await (await fetch("diccionario_es.txt", { cache: "no-store" })).text();
   diccionario = new Set();
@@ -440,6 +451,7 @@ async function anadirPalabra(cruda) {
   if (enTablero.has(p)) return mensaje(`“${p}” ya está en el tablero`, "error");
 
   if (!existeEnEspanol(p)) {
+    registrarPalabraRechazada(p);
     return mensajeSugerencia(p, sugerencias(p));
   }
 
