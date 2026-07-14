@@ -233,6 +233,7 @@ async function nuevoJuego() {
   extra = {};
   $("#panel").classList.add("oculto");
   ocultarCompartir();
+  bloquearEntrada(false);
   mensaje("preparando partida…");
   [origen, destino] = await elegirObjetivos();
   enTablero = new Set([origen, destino]);
@@ -443,7 +444,20 @@ function ganar(aristas) {
   marcarRuta(caminoMasCorto(aristas));
   const usadas = enTablero.size - 2;
   mensaje(`conectado con ${usadas} palabra${usadas === 1 ? "" : "s"} puente`, "ok");
-  if (puedeCompartir()) $("#btn-compartir").classList.remove("oculto");
+  bloquearEntrada(true);
+  if (puedeMostrarCompartir()) mostrarCompartir();
+}
+
+function puedeMostrarCompartir() {
+  return (
+    window.isSecureContext &&
+    matchMedia("(pointer: coarse)").matches &&
+    typeof navigator.share === "function"
+  );
+}
+
+function mostrarCompartir() {
+  $("#btn-compartir")?.classList.remove("oculto");
 }
 
 async function anadirPalabra(cruda) {
@@ -480,6 +494,7 @@ async function colocar(p) {
   colocarNodoNuevo(p, aristas);
   asegurarNodosVisibles();
 
+  if (ganado) return;
   if (conecta) mensaje(`“${p}” conectada`, "ok");
   else mensaje(`“${p}” sin enlaces todavía`);
 }
@@ -545,12 +560,8 @@ function urlJuego() {
   return u.href.replace(/\/$/, "") || u.origin;
 }
 
-function puedeCompartir() {
-  return typeof navigator.share === "function";
-}
-
 function ocultarCompartir() {
-  $("#btn-compartir").classList.add("oculto");
+  $("#btn-compartir")?.classList.add("oculto");
 }
 
 async function esperarRepintado() {
@@ -575,22 +586,20 @@ function textoCompartir() {
 }
 
 async function compartirVictoria() {
-  if (!ganado || !puedeCompartir()) return;
+  if (!ganado || !puedeMostrarCompartir()) return;
   const btn = $("#btn-compartir");
   btn.disabled = true;
   try {
     const blob = await capturarGrafo();
     const file = new File([blob], "tejepalabras.png", { type: "image/png" });
-    const payload = {
-      files: [file],
-      title: "Tejepalabras",
-      text: textoCompartir(),
-      url: urlJuego(),
-    };
-    if (navigator.canShare && !navigator.canShare(payload)) {
-      delete payload.files;
+    const url = urlJuego();
+    const text = `${textoCompartir()}\n${url}`;
+    const conArchivo = { files: [file], title: "Tejepalabras", text };
+    if (navigator.canShare?.(conArchivo)) {
+      await navigator.share(conArchivo);
+    } else {
+      await navigator.share({ title: "Tejepalabras", text, url });
     }
-    await navigator.share(payload);
   } catch (e) {
     if (e.name !== "AbortError") mensaje("no se pudo compartir", "error");
   } finally {

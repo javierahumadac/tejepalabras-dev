@@ -81,10 +81,17 @@ footer {
   padding-bottom: max(20px, env(safe-area-inset-bottom, 0px));
 }
 
-#form-palabra { max-width: 420px; margin: 0 auto; }
+#form-palabra {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 420px;
+  margin: 0 auto;
+}
 
 #entrada {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   background: #1a1a1a;
   border: 1px solid #333;
   border-radius: 8px;
@@ -93,6 +100,14 @@ footer {
   font: inherit;
 }
 #entrada:focus { outline: none; border-color: #666; }
+
+#btn-compartir {
+  flex-shrink: 0;
+  padding: 4px;
+}
+#btn-compartir .bi { font-size: 1.15rem; }
+#btn-compartir:not(:disabled):hover { color: #3dd68c; }
+#btn-compartir:disabled { opacity: 0.6; cursor: wait; }
 
 .mensaje {
   text-align: center;
@@ -103,28 +118,6 @@ footer {
 }
 .mensaje.error { color: #f87171; }
 .mensaje.ok { color: #3dd68c; }
-
-.btn-compartir {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  width: 100%;
-  max-width: 420px;
-  margin: 0 auto 10px;
-  padding: 10px 14px;
-  background: #1a1a1a;
-  border: 1px solid #3dd68c;
-  border-radius: 8px;
-  color: #3dd68c;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.btn-compartir:hover:not(:disabled) { background: #222; color: #5eead4; border-color: #5eead4; }
-.btn-compartir:disabled { opacity: 0.6; cursor: wait; }
-.btn-compartir .bi { font-size: 1rem; line-height: 1; }
 
 .umbral-info {
   flex-shrink: 0;
