@@ -8,7 +8,7 @@ const UMBRAL = 41.5;
 const SIM_OBJETIVO_MIN = 20;
 const SIM_OBJETIVO_MAX = 30;
 
-const GRADO_MAX = 6; // como en Linxicon: los enlaces "se rompen" si un nodo acumula demasiados
+const GRADO_MAX = 10; // los enlaces "se rompen" si un nodo acumula demasiados
 
 let palabrasPool = [];     // palabras del diccionario para elegir objetivos al azar
 let extra = {};            // similitudes calculadas por el modelo: extra[a][b] = %
@@ -235,6 +235,13 @@ function crearCytoscape() {
         },
       },
       {
+        selector: "node.aislado",
+        style: {
+          "border-color": "#8a1c36",
+          "border-width": 2,
+        },
+      },
+      {
         selector: "edge",
         style: {
           width: "data(peso)",
@@ -285,6 +292,10 @@ function crearCytoscape() {
       {
         selector: "node.captura.conectado",
         style: { "background-color": "#3dd68c" },
+      },
+      {
+        selector: "node.captura.aislado",
+        style: { "background-color": "#8a1c36" },
       },
       {
         selector: "edge.captura",
@@ -388,7 +399,15 @@ async function reconstruir() {
   });
 
   actualizarEstado(aristas);
+  marcarAislados();
   return aristas;
+}
+
+function marcarAislados() {
+  cy.nodes().forEach((n) => {
+    if (n.degree() === 0) n.addClass("aislado");
+    else n.removeClass("aislado");
+  });
 }
 
 function ejecutarLayout() {
@@ -675,7 +694,11 @@ async function capturarGrafo() {
 
 function textoCompartir() {
   const usadas = enTablero.size - 2;
-  const etiqueta = modo === MODO_DIARIO ? " (reto del día)" : "";
+  let etiqueta = "";
+  if (modo === MODO_DIARIO) {
+    const [y, m, d] = fechaHoyStr().split("-");
+    etiqueta = ` (${d}/${m}/${y})`;
+  }
   return `Conecté '${origen}' con '${destino}'${etiqueta} en Tejepalabras con ${usadas} palabra${usadas === 1 ? "" : "s"}.`;
 }
 
