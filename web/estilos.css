@@ -21,37 +21,53 @@ body {
 }
 
 header {
-  position: relative;
   flex-shrink: 0;
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: center;
-  gap: 12px;
   padding: 14px 16px;
   padding-top: max(14px, env(safe-area-inset-top, 0px));
   font-size: 18px;
   font-weight: 600;
 }
 
-.flecha { color: #666; font-weight: 400; }
-.flecha.ok { color: #3dd68c; }
+.header-centro {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-self: center;
+}
 
-#btn-ayuda,
-#btn-nuevo {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
+.flecha {
+  display: inline-flex;
+  align-items: center;
+  color: #666;
+}
+.flecha.ok { color: #3dd68c; }
+.flecha .bi { font-size: 0.75em; line-height: 1; }
+
+.btn-icono {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: none;
   color: #888;
   font: inherit;
   cursor: pointer;
   padding: 4px 0;
+  line-height: 1;
 }
-#btn-ayuda { left: 16px; width: 28px; font-weight: 600; }
-#btn-nuevo { right: 16px; }
-#btn-ayuda:hover,
-#btn-nuevo:hover { color: #eee; }
+.btn-icono:hover { color: #eee; }
+.btn-icono .bi { line-height: 1; }
+
+#btn-ayuda,
+#btn-nuevo { width: 50px; }
+#btn-ayuda { justify-self: start; }
+#btn-nuevo { justify-self: end; }
+#btn-ayuda .bi,
+#btn-nuevo .bi,
+.btn-cerrar .bi { font-size: 1.15rem; }
 
 #grafo {
   flex: 1;
@@ -181,34 +197,17 @@ body.entrada-activa footer {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 1.5px solid #888;
   color: #888;
-  font-size: 11px;
-  font-style: italic;
-  font-family: Georgia, "Times New Roman", serif;
-  font-weight: 700;
+  font-size: 0.95rem;
   line-height: 1;
   text-decoration: none;
-  text-transform: lowercase;
 }
-.panel-rae:hover {
-  color: #eee;
-  border-color: #eee;
-}
-.panel-cabecera button {
-  background: none;
-  border: none;
-  color: #888;
-  font-size: 20px;
-  cursor: pointer;
-  line-height: 1;
+.panel-rae .bi { line-height: 1; }
+.panel-rae:hover { color: #eee; }
+.panel-cabecera .btn-cerrar {
   padding: 0;
   flex-shrink: 0;
 }
-.panel-cabecera button:hover { color: #eee; }
 #panel-lista {
   list-style: none;
   margin: 0;
@@ -260,16 +259,7 @@ body.entrada-activa footer {
 .modal-cabecera strong {
   font-size: 16px;
 }
-.modal-cabecera button {
-  background: none;
-  border: none;
-  color: #888;
-  font-size: 20px;
-  cursor: pointer;
-  line-height: 1;
-  padding: 0;
-}
-.modal-cabecera button:hover { color: #eee; }
+.modal-cabecera .btn-cerrar { padding: 0; }
 .modal-cuerpo {
   color: #bbb;
   font-size: 14px;

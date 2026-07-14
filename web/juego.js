@@ -415,8 +415,9 @@ function marcarRuta(nodos) {
 
 function actualizarEstado(aristas) {
   const conecta = componenteConecta(aristas);
-  $("#estado-flecha").classList.toggle("ok", conecta);
-  $("#estado-flecha").textContent = conecta ? "→" : "⋯";
+  const flecha = $("#estado-flecha");
+  flecha.classList.toggle("ok", conecta);
+  flecha.firstElementChild.className = conecta ? "bi bi-arrow-right" : "bi bi-three-dots";
 
   if (conecta && !ganado) ganar(aristas);
   else if (!conecta) {
