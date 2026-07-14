@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tejepalabras</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.2/cytoscape.min.js"></script>
+  <link rel="stylesheet" href="estilos.css" />
+</head>
+<body>
+  <header>
+    <span id="origen">–</span>
+    <span id="estado-flecha" class="flecha">⋯</span>
+    <span id="destino">–</span>
+    <button id="btn-nuevo" type="button">nuevo</button>
+  </header>
+
+  <div id="grafo"></div>
+
+  <footer>
+    <form id="form-palabra" autocomplete="off">
+      <input id="entrada" placeholder="palabra puente…" autocomplete="off" spellcheck="false" />
+    </form>
+    <p id="mensaje" class="mensaje"></p>
+    <p id="umbral-info" class="umbral-info"></p>
+    <p class="creditos">
+      Inspirado en <a href="https://linxicon.com/" target="_blank" rel="noopener noreferrer">Linxicon</a>
+    </p>
+  </footer>
+
+  <aside id="panel" class="panel oculto">
+    <div class="panel-cabecera">
+      <div class="panel-titulo-wrap">
+        <strong id="panel-titulo">palabra</strong>
+        <a id="panel-rae" class="panel-rae" href="#" target="_blank" rel="noopener noreferrer" aria-label="Ver definición en la RAE" title="Ver en la RAE">i</a>
+      </div>
+      <button id="panel-cerrar" type="button" aria-label="Cerrar">×</button>
+    </div>
+    <ul id="panel-lista"></ul>
+  </aside>
+
+  <script type="module" src="juego.js"></script>
+</body>
+</html>
