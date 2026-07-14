@@ -293,14 +293,16 @@ async function reconstruir() {
 }
 
 function ejecutarLayout() {
-  cy.layout({
+  const layout = cy.layout({
     name: "cose",
     animate: true,
     animationDuration: 400,
     idealEdgeLength: 90,
     nodeRepulsion: 9000,
     padding: 40,
-  }).run();
+  });
+  layout.one("layoutstop", () => asegurarNodosVisibles());
+  layout.run();
 }
 
 function colocarNodoNuevo(p, aristas) {
@@ -347,13 +349,17 @@ function nodosDentroDePantalla(margen = 16) {
   });
 }
 
-function asegurarNodosVisibles() {
+function asegurarNodosVisibles({ animar = true } = {}) {
   if (!cy.nodes().length || nodosDentroDePantalla()) return;
-  cy.animate({
-    fit: { eles: cy.nodes(), padding: 40 },
-    duration: 280,
-    easing: "ease-out",
-  });
+  if (animar) {
+    cy.animate({
+      fit: { eles: cy.nodes(), padding: 40 },
+      duration: 280,
+      easing: "ease-out",
+    });
+  } else {
+    cy.fit(cy.nodes(), 40);
+  }
 }
 
 function componenteConecta(aristas) {
@@ -451,6 +457,7 @@ async function anadirPalabra(cruda) {
 }
 
 async function colocar(p) {
+  $("#panel").classList.add("oculto");
   const conecta = [...enTablero].some((n) => sim(n, p) > UMBRAL);
   enTablero.add(p);
   cy.add({ data: { id: p } });
@@ -516,7 +523,62 @@ function mensaje(txt, tipo = "") {
   el.className = "mensaje" + (tipo ? " " + tipo : "");
 }
 
+function registrarViewport() {
+  const entrada = $("#entrada");
+  const contenedor = $("#grafo");
+  const esTactil = matchMedia("(pointer: coarse)").matches;
+  let debounceTimer = null;
+  let ultimoAncho = 0;
+  let ultimoAlto = 0;
+
+  function syncAltura() {
+    const vv = window.visualViewport;
+    const h = vv ? vv.height : window.innerHeight;
+    document.body.style.height = `${Math.round(h)}px`;
+  }
+
+  function ajustarGrafoAlContenedor() {
+    if (!cy) return;
+    const w = contenedor.clientWidth;
+    const h = contenedor.clientHeight;
+    if (w === ultimoAncho && h === ultimoAlto) return;
+    ultimoAncho = w;
+    ultimoAlto = h;
+    cy.stop();
+    cy.resize();
+    asegurarNodosVisibles({ animar: false });
+  }
+
+  function programarAjusteGrafo() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(ajustarGrafoAlContenedor, 80);
+  }
+
+  if (typeof ResizeObserver !== "undefined") {
+    new ResizeObserver(() => programarAjusteGrafo()).observe(contenedor);
+  }
+
+  if (window.visualViewport) {
+    visualViewport.addEventListener("resize", syncAltura);
+    visualViewport.addEventListener("scroll", syncAltura);
+  }
+  syncAltura();
+
+  if (esTactil) {
+    entrada.addEventListener("focus", () => {
+      document.body.classList.add("entrada-activa");
+      syncAltura();
+    });
+    entrada.addEventListener("blur", () => {
+      document.body.classList.remove("entrada-activa");
+      syncAltura();
+    });
+  }
+}
+
 function registrarEventos() {
+  registrarViewport();
+
   $("#form-palabra").addEventListener("submit", async (e) => {
     e.preventDefault();
     const entrada = $("#entrada");
