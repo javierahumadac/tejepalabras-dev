@@ -169,16 +169,6 @@ footer {
 .mensaje.error { color: #f87171; }
 .mensaje.ok { color: #3dd68c; }
 
-.modo-info {
-  flex-shrink: 0;
-  text-align: center;
-  margin: 0 0 2px;
-  padding: 0 16px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #888;
-}
-
 .sugerencia {
   background: none;
   border: none;
@@ -205,7 +195,6 @@ footer {
   text-decoration: underline;
 }
 
-body.entrada-activa .modo-info,
 body.entrada-activa .creditos {
   display: none;
 }

@@ -341,22 +341,10 @@ async function nuevoJuego(diario = false, par = null) {
   ]);
   await reconstruir();
   ejecutarLayout();
-  actualizarEtiquetaModo();
+  actualizarMenuModos();
   actualizarUrl();
   mensaje("");
   $("#entrada").focus();
-}
-
-function actualizarEtiquetaModo() {
-  const el = $("#modo-info");
-  if (!el) return;
-  if (modo === MODO_DIARIO) {
-    const texto = new Date().toLocaleDateString("es", { day: "numeric", month: "long" });
-    el.textContent = `Reto del día · ${texto}`;
-  } else {
-    el.textContent = "Modo práctica (aleatorio)";
-  }
-  actualizarMenuModos();
 }
 
 function actualizarMenuModos() {
@@ -729,20 +717,19 @@ async function copiarPortapapeles(texto) {
 
 async function compartirTextoUrl(texto) {
   const url = urlJuego();
-  const completo = `${texto}\n${url}`;
   if (esDispositivoTactil() && puedeUsarWebShare()) {
-    await navigator.share({ title: "Tejepalabras", text: completo, url });
+    await navigator.share({ title: "Tejepalabras", text: texto, url });
   } else {
-    await copiarPortapapeles(completo);
+    await copiarPortapapeles(`${texto}\n${url}`);
   }
 }
 
 async function compartirVictoriaTactil() {
   const url = urlJuego();
-  const text = `${textoCompartir()}\n${url}`;
+  const text = textoCompartir();
   const blob = await capturarGrafo();
   const file = new File([blob], "tejepalabras.png", { type: "image/png" });
-  const conArchivo = { files: [file], title: "Tejepalabras", text };
+  const conArchivo = { files: [file], title: "Tejepalabras", text, url };
   if (navigator.canShare?.(conArchivo)) {
     await navigator.share(conArchivo);
   } else {
@@ -756,11 +743,11 @@ async function compartir() {
   try {
     if (ganado) {
       const url = urlJuego();
-      const text = `${textoCompartir()}\n${url}`;
+      const text = textoCompartir();
       if (esDispositivoTactil() && puedeUsarWebShare()) {
         await compartirVictoriaTactil();
       } else {
-        await copiarPortapapeles(text);
+        await copiarPortapapeles(`${text}\n${url}`);
       }
     } else {
       await compartirTextoUrl(textoDesafio());
@@ -864,8 +851,11 @@ function registrarMenuModos() {
     opcion.addEventListener("click", async () => {
       const elegido = opcion.dataset.modo;
       cerrar();
-      if (elegido === modo) return;
-      await nuevoJuego(elegido === MODO_DIARIO);
+      if (elegido === MODO_PRACTICA) {
+        await nuevoJuego(false);
+      } else if (elegido !== modo) {
+        await nuevoJuego(true);
+      }
     });
   });
 }
