@@ -3,8 +3,8 @@
 
 // Retocado para word2vec SBWC (pares aleatorios ~p95≈33%; sinónimos 60–80%).
 const UMBRAL = 35.5;
-const SIM_OBJETIVO_MIN = 5;
-const SIM_OBJETIVO_MAX = 10;
+const SIM_OBJETIVO_MIN = 10;
+const SIM_OBJETIVO_MAX = 20;
 
 const GRADO_MAX = 10; // los enlaces "se rompen" si un nodo acumula demasiados
 
@@ -226,10 +226,7 @@ function similitudPct(a, b) {
 }
 
 function actualizarUmbralInfo() {
-  let texto = `Enlace mínimo: ${UMBRAL}% de similitud.`;
-  const n = enTablero.size - 2;
-  if (n > 0) texto += `<br>Actualmente hay ${n} palabra${n === 1 ? "" : "s"} en el tablero.`;
-  $("#umbral-info").innerHTML = texto;
+  $("#umbral-info").textContent = `Enlace mínimo: ${UMBRAL}% de similitud.`;
 }
 
 async function iniciar() {

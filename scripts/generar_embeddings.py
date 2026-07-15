@@ -214,12 +214,13 @@ def evaluar(palabras: list[str], unitaria: np.ndarray) -> None:
     if len(palabras) > MAX_PALABRAS_EVAL:
         print(f"  (mostrando las primeras {MAX_PALABRAS_EVAL} de {len(palabras)})")
 
-    similitudes = unitaria @ unitaria.T
-    for w in objetivo:
-        i = indice[w]
-        orden = np.argsort(-similitudes[i])
+    indices_objetivo = [indice[w] for w in objetivo]
+    similitudes = unitaria[indices_objetivo] @ unitaria.T
+    for fila, w in enumerate(objetivo):
+        i = indices_objetivo[fila]
+        orden = np.argsort(-similitudes[fila])
         vecinos = [j for j in orden if j != i][:VECINOS_EVAL]
-        texto = ", ".join(f"{palabras[j]} ({100 * similitudes[i, j]:.1f}%)" for j in vecinos)
+        texto = ", ".join(f"{palabras[j]} ({100 * similitudes[fila, j]:.1f}%)" for j in vecinos)
         print(f"  {w:16} → {texto}")
 
 
