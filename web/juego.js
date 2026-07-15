@@ -15,6 +15,7 @@ let destino = null;
 let enTablero = new Set();
 let cy = null;
 let ganado = false;
+let ultimoPuntaje = null;
 let listo = false;
 
 const MODO_DIARIO = "diario";
@@ -360,9 +361,11 @@ function crearCytoscape() {
 async function nuevoJuego(diario = false, par = null) {
   if (!listo) return;
   ganado = false;
+  ultimoPuntaje = null;
   extra = {};
   modo = diario ? MODO_DIARIO : MODO_PRACTICA;
   $("#panel").classList.add("oculto");
+  $("#modal-final").classList.add("oculto");
   bloquearEntrada(false);
   mensaje("preparando partida…");
   if (par) {
@@ -448,14 +451,35 @@ async function reconstruir() {
   });
 
   actualizarEstado(aristas);
-  marcarAislados();
+  marcarAislados(aristas);
   return aristas;
 }
 
-function marcarAislados() {
+function construirUnionFind(aristas) {
+  const padre = {};
+  const find = (x) => (padre[x] === x ? x : (padre[x] = find(padre[x])));
+  [...enTablero].forEach((n) => (padre[n] = n));
+  aristas.forEach((c) => {
+    const ra = find(c.a);
+    const rb = find(c.b);
+    if (ra !== rb) padre[ra] = rb;
+  });
+  return find;
+}
+
+/**
+ * Un nodo está "aislado" (en rojo) si no pertenece a la red de origen ni a
+ * la de destino, aunque esté enlazado a otras palabras sueltas.
+ */
+function marcarAislados(aristas) {
+  const find = construirUnionFind(aristas);
+  const compOrigen = find(origen);
+  const compDestino = find(destino);
   cy.nodes().forEach((n) => {
-    if (n.degree() === 0) n.addClass("aislado");
-    else n.removeClass("aislado");
+    const id = n.id();
+    const enRedPrincipal =
+      id === origen || id === destino || find(id) === compOrigen || find(id) === compDestino;
+    n.toggleClass("aislado", !enRedPrincipal);
   });
 }
 
@@ -530,10 +554,7 @@ function asegurarNodosVisibles({ animar = true } = {}) {
 }
 
 function componenteConecta(aristas) {
-  const padre = {};
-  const find = (x) => (padre[x] === x ? x : (padre[x] = find(padre[x])));
-  [...enTablero].forEach((n) => (padre[n] = n));
-  aristas.forEach((c) => (padre[find(c.a)] = find(c.b)));
+  const find = construirUnionFind(aristas);
   return find(origen) === find(destino);
 }
 
@@ -593,12 +614,53 @@ function actualizarEstado(aristas) {
   }
 }
 
+const PUNTOS_VERDE = 1;
+const PUNTOS_GRIS = 2;
+const PUNTOS_ROJO = 3;
+
+/**
+ * Puntaje al estilo golf (menos es mejor):
+ *  x1 por cada palabra puente en la ruta más corta (verde).
+ *  x2 por cada palabra conectada a la red principal pero fuera de esa ruta (gris).
+ *  x3 por cada palabra suelta, sin conectar a la red principal (roja).
+ */
+function calcularPuntaje(aristas, ruta) {
+  const find = construirUnionFind(aristas);
+  const compPrincipal = find(origen);
+  const rutaSet = new Set(ruta);
+  let verdes = 0;
+  let grises = 0;
+  let sueltos = 0;
+  enTablero.forEach((id) => {
+    if (id === origen || id === destino) return;
+    if (rutaSet.has(id)) verdes++;
+    else if (find(id) === compPrincipal) grises++;
+    else sueltos++;
+  });
+  const puntaje = verdes * PUNTOS_VERDE + grises * PUNTOS_GRIS + sueltos * PUNTOS_ROJO;
+  return { verdes, grises, sueltos, puntaje };
+}
+
+function mostrarResultado({ verdes, grises, sueltos, puntaje }) {
+  ultimoPuntaje = puntaje;
+  $("#puntaje-total").textContent = puntaje;
+  $("#puntaje-verdes-cant").textContent = verdes;
+  $("#puntaje-verdes-total").textContent = verdes * PUNTOS_VERDE;
+  $("#puntaje-grises-cant").textContent = grises;
+  $("#puntaje-grises-total").textContent = grises * PUNTOS_GRIS;
+  $("#puntaje-sueltos-cant").textContent = sueltos;
+  $("#puntaje-sueltos-total").textContent = sueltos * PUNTOS_ROJO;
+  $("#modal-final").classList.remove("oculto");
+}
+
 function ganar(aristas) {
   ganado = true;
-  marcarRuta(caminoMasCorto(aristas));
+  const ruta = caminoMasCorto(aristas);
+  marcarRuta(ruta);
   const usadas = enTablero.size - 2;
   mensaje(`conectado con ${usadas} palabra${usadas === 1 ? "" : "s"} puente`, "ok");
   bloquearEntrada(true);
+  mostrarResultado(calcularPuntaje(aristas, ruta));
 }
 
 function esDispositivoTactil() {
@@ -634,7 +696,6 @@ async function anadirPalabra(cruda) {
 
 async function colocar(p) {
   $("#panel").classList.add("oculto");
-  const conecta = [...enTablero].some((n) => sim(n, p) > UMBRAL);
   enTablero.add(p);
   cy.add({ data: { id: p } });
   const aristas = await reconstruir();
@@ -642,8 +703,7 @@ async function colocar(p) {
   asegurarNodosVisibles();
 
   if (ganado) return;
-  if (conecta) mensaje(`“${p}” conectada`, "ok");
-  else mensaje(`“${p}” sin enlaces todavía`);
+  mensaje("");
 }
 
 async function mostrarPanel(palabra) {
@@ -745,8 +805,8 @@ function textoDesafio() {
 }
 
 function textoCompartir() {
-  const usadas = enTablero.size - 2;
-  return `Conecté '${origen}' con '${destino}'${etiquetaFecha()} en Tejepalabras con ${usadas} palabra${usadas === 1 ? "" : "s"}.`;
+  const puntos = ultimoPuntaje ?? 0;
+  return `Conecté '${origen}' con '${destino}'${etiquetaFecha()} en Tejepalabras con ${puntos} punto${puntos === 1 ? "" : "s"}.`;
 }
 
 async function copiarPortapapeles(texto) {
@@ -917,16 +977,24 @@ function registrarEventos() {
 
   const ayuda = $("#ayuda");
   const menuModos = $("#menu-modos");
+  const modalFinal = $("#modal-final");
   const abrirAyuda = () => ayuda.classList.remove("oculto");
   const cerrarAyuda = () => ayuda.classList.add("oculto");
   const cerrarMenuModos = () => menuModos.classList.add("oculto");
+  const cerrarModalFinal = () => modalFinal.classList.add("oculto");
   $("#btn-ayuda").addEventListener("click", abrirAyuda);
   $("#ayuda-cerrar").addEventListener("click", cerrarAyuda);
   ayuda.querySelector("[data-cerrar-ayuda]").addEventListener("click", cerrarAyuda);
+
+  $("#modal-final-cerrar").addEventListener("click", cerrarModalFinal);
+  modalFinal.querySelector("[data-cerrar-final]").addEventListener("click", cerrarModalFinal);
+  $("#modal-final-compartir").addEventListener("click", () => void compartir());
+
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
     if (!menuModos.classList.contains("oculto")) cerrarMenuModos();
     else if (!ayuda.classList.contains("oculto")) cerrarAyuda();
+    else if (!modalFinal.classList.contains("oculto")) cerrarModalFinal();
   });
 }
 

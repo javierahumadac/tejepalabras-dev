@@ -119,10 +119,58 @@
     </div>
   </div>
 
+  <div id="modal-final" class="modal oculto" role="dialog" aria-modal="true" aria-labelledby="modal-final-titulo">
+    <div class="modal-fondo" data-cerrar-final></div>
+    <div class="modal-caja">
+      <div class="modal-cabecera">
+        <div class="modal-titulo-wrap">
+          <strong id="modal-final-titulo">Tejepalabras</strong>
+        </div>
+        <button type="button" id="modal-final-cerrar" class="btn-icono btn-cerrar" aria-label="Cerrar">
+          <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div class="modal-cuerpo">
+        <p class="puntaje-total">Puntaje: <strong id="puntaje-total">0</strong></p>
+        <ul class="puntaje-detalle">
+          <li>
+            <span class="puntaje-etiqueta">palabras en la ruta más corta</span>
+            <span class="puntaje-calculo">
+              <span id="puntaje-verdes-cant">0</span>
+              <span class="multiplicador multiplicador-verde">x 1</span>
+              = <span id="puntaje-verdes-total">0</span>
+            </span>
+          </li>
+          <li>
+            <span class="puntaje-etiqueta">palabras conectadas fuera de ruta</span>
+            <span class="puntaje-calculo">
+              <span id="puntaje-grises-cant">0</span>
+              <span class="multiplicador multiplicador-gris">x 2</span>
+              = <span id="puntaje-grises-total">0</span>
+            </span>
+          </li>
+          <li>
+            <span class="puntaje-etiqueta">palabras sueltas</span>
+            <span class="puntaje-calculo">
+              <span id="puntaje-sueltos-cant">0</span>
+              <span class="multiplicador multiplicador-rojo">x 3</span>
+              = <span id="puntaje-sueltos-total">0</span>
+            </span>
+          </li>
+        </ul>
+      </div>
+      <div class="modal-pie">
+        <button type="button" id="modal-final-compartir" class="btn-compartir-final">
+          <i class="bi bi-share" aria-hidden="true"></i> Compartir resultado
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- GOATCOUNTER_START -->
   <script data-goatcounter="%%GOATCOUNTER_ENDPOINT%%"
           async src="//gc.zgo.at/count.js"></script>
   <!-- GOATCOUNTER_END -->
-  <script type="module" src="juego.js?v=14"></script>
+  <script type="module" src="juego.js?v=17"></script>
 </body>
 </html>

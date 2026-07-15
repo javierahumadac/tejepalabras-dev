@@ -362,6 +362,10 @@ body.entrada-activa footer {
   border-top: 1px solid #2a2a2a;
   text-align: center;
 }
+#modal-final .modal-pie {
+  border-top: none;
+  padding-top: 0;
+}
 .modal-creditos {
   margin: 0 0 10px;
   font-size: 12px;
@@ -397,3 +401,68 @@ body.entrada-activa footer {
   font-size: 1.25rem;
   line-height: 1;
 }
+
+.puntaje-total {
+  margin: 0 0 16px;
+  text-align: center;
+  font-size: 16px;
+  color: #bbb;
+}
+.puntaje-total strong {
+  display: block;
+  font-size: 32px;
+  line-height: 1.2;
+  color: #3dd68c;
+}
+.puntaje-detalle {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.puntaje-detalle li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 14px;
+}
+.puntaje-etiqueta {
+  color: #bbb;
+  text-align: left;
+}
+.puntaje-calculo {
+  flex-shrink: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  color: #eee;
+  text-align: right;
+  white-space: nowrap;
+}
+.multiplicador {
+  font-weight: 700;
+}
+.multiplicador-verde { color: #3dd68c; }
+.multiplicador-gris { color: #888; }
+.multiplicador-rojo { color: #e2586b; }
+
+.btn-compartir-final {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  background: #222;
+  border: 1px solid #333;
+  border-radius: 8px;
+  color: #eee;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-compartir-final:hover { background: #2a2a2a; }
+.btn-compartir-final .bi { font-size: 1rem; }
