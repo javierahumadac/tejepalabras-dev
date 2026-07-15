@@ -25,6 +25,7 @@ Todo corre en el navegador, sin backend:
 - [Listado de palabras RAE (23.8.1)](https://github.com/rubenperezm/ListadosPalabrasRAE) de rubenperezm, lemario base derivado del diccionario de la RAE.
 - [lemarios](https://github.com/olea/lemarios) de Santiago Olea, lemario general del español y conjugaciones de verbos, dominio público. Usado para completar palabras que el listado RAE no separaba (p. ej. sustantivos con forma propia en -a/-o como "música"/"músico") y para sumar formas verbales conjugadas.
 - Marcas/nombres comerciales populares. **No provienen de ningún dataset o listado externo**: es una lista obtenida por un LLM.
+- Países, territorios y gentilicios (masculino/femenino), a partir del [Anexo:Gentilicios](https://es.wikipedia.org/wiki/Lista_de_gentilicios_ordenada_por_top%C3%B3nimo) de Wikipedia en español.
 
 ## Modelo de similitud
 
