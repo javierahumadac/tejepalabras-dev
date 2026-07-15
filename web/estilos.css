@@ -397,12 +397,3 @@ body.entrada-activa footer {
   font-size: 1.25rem;
   line-height: 1;
 }
-
-.icono-marca {
-  display: inline-block;
-  width: 1.25rem;
-  height: 1.25rem;
-  background-color: currentColor;
-  mask: url("icons/huggingface.svg") center / contain no-repeat;
-  -webkit-mask: url("icons/huggingface.svg") center / contain no-repeat;
-}

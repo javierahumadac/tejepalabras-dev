@@ -1,0 +1,8 @@
+# Caché de vectores SBWC (~800 MB); no versionar
+/data/
+
+# Artefactos locales de Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/

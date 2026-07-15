@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "source": "SBWC word2vec (Cardellino / dccuchile)",
+  "source_url": "https://cs.famaf.unc.edu.ar/~ccardellino/SBWCE/SBW-vectors-300-min5.txt.bz2",
+  "license": "CC-BY-4.0 (redistribución dccuchile/spanish-word-embeddings)",
+  "dim_original": 300,
+  "dim": 64,
+  "dims_pca": 64,
+  "n": 56285,
+  "scale": 0.006552400082115113,
+  "dtype": "int8",
+  "vocab_file": "diccionario_es.vocab",
+  "vectors_file": "embeddings.bin"
+}

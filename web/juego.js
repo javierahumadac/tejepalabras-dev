@@ -1,22 +1,21 @@
 // Tejepalabras — juego en el navegador (sin backend).
-// Modelo ONNX en Hugging Face; ortografía con diccionario_es.txt.
+// Vocabulario y similitud: diccionario_es.vocab + embeddings.bin (word2vec SBWC).
 
-import { pipeline } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.3.3";
-
-const MODELO_ID = "jotaah/tejepalabras-onnx";
-const UMBRAL = 43.5;
-const SIM_OBJETIVO_MIN = 20;
-const SIM_OBJETIVO_MAX = 25;
+// Retocado para word2vec SBWC (pares aleatorios ~p95≈33%; sinónimos 60–80%).
+const UMBRAL = 39.5;
+const SIM_OBJETIVO_MIN = 5;
+const SIM_OBJETIVO_MAX = 10;
 
 const GRADO_MAX = 10; // los enlaces "se rompen" si un nodo acumula demasiados
 
-let palabrasPool = [];     // palabras del diccionario para elegir objetivos al azar
-let extra = {};            // similitudes calculadas por el modelo: extra[a][b] = %
+let palabrasPool = [];     // palabras con vector para elegir objetivos al azar
+let extra = {};            // similitudes: extra[a][b] = %
 let origen = null;
 let destino = null;
 let enTablero = new Set();
 let cy = null;
 let ganado = false;
+let listo = false;
 
 const MODO_DIARIO = "diario";
 const MODO_PRACTICA = "practica";
@@ -61,7 +60,7 @@ function rngDelDia() {
   return mulberry32(seedDesdeTexto(fechaHoyStr()));
 }
 
-let extractor = null;
+/** @type {Map<string, Float32Array>} */
 const cacheEmb = new Map();
 let diccionario = new Set();
 
@@ -82,14 +81,51 @@ function registrarPalabraRechazada(palabra) {
   });
 }
 
-async function cargarDiccionario() {
-  const txt = await (await fetch("diccionario_es.txt", { cache: "no-store" })).text();
-  diccionario = new Set();
-  for (const linea of txt.split("\n")) {
+function normalizarL2(vec) {
+  let n2 = 0;
+  for (let i = 0; i < vec.length; i++) n2 += vec[i] * vec[i];
+  const n = Math.sqrt(n2) || 1;
+  for (let i = 0; i < vec.length; i++) vec[i] /= n;
+  return vec;
+}
+
+async function cargarEmbeddings() {
+  const meta = await (await fetch("embeddings.json", { cache: "no-store" })).json();
+  const [vocabTxt, buf] = await Promise.all([
+    (await fetch(meta.vocab_file || "diccionario_es.vocab", { cache: "no-store" })).text(),
+    (await fetch(meta.vectors_file || "embeddings.bin", { cache: "no-store" })).arrayBuffer(),
+  ]);
+
+  const palabras = [];
+  for (const linea of vocabTxt.split("\n")) {
     const p = norm(linea);
-    if (p) diccionario.add(p);
+    if (p) palabras.push(p);
   }
-  palabrasPool = [...diccionario];
+  if (palabras.length !== meta.n) {
+    throw new Error(`vocab (${palabras.length}) ≠ meta.n (${meta.n})`);
+  }
+
+  const esperado = meta.n * meta.dim;
+  const i8 = new Int8Array(buf);
+  if (i8.length !== esperado) {
+    throw new Error(`bin (${i8.length}) ≠ n*dim (${esperado})`);
+  }
+
+  const scale = meta.scale;
+  const dim = meta.dim;
+  diccionario = new Set();
+  palabrasPool = palabras;
+  cacheEmb.clear();
+  for (let i = 0; i < meta.n; i++) {
+    const w = palabras[i];
+    const vec = new Float32Array(dim);
+    const base = i * dim;
+    for (let d = 0; d < dim; d++) vec[d] = i8[base + d] * scale;
+    normalizarL2(vec);
+    cacheEmb.set(w, vec);
+    diccionario.add(w);
+  }
+  listo = true;
 }
 
 function existeEnEspanol(palabra) {
@@ -135,15 +171,9 @@ function sugerencias(palabra, maximo = 4) {
   return out;
 }
 
-async function cargarModelo() {
-  extractor = await pipeline("feature-extraction", MODELO_ID);
-}
-
-async function embedding(palabra) {
-  if (cacheEmb.has(palabra)) return cacheEmb.get(palabra);
-  const salida = await extractor(palabra, { pooling: "mean", normalize: true });
-  const vec = salida.data;
-  cacheEmb.set(palabra, vec);
+function embedding(palabra) {
+  const vec = cacheEmb.get(palabra);
+  if (!vec) throw new Error(`sin vector: ${palabra}`);
   return vec;
 }
 
@@ -151,6 +181,11 @@ function producto(a, b) {
   let s = 0;
   for (let i = 0; i < a.length; i++) s += a[i] * b[i];
   return s;
+}
+
+/** Coseno en % acotado a [0, 100] (los negativos del coseno no aportan al juego). */
+function similitudPct(a, b) {
+  return Math.round(Math.max(0, Math.min(1, producto(a, b))) * 100);
 }
 
 function actualizarUmbralInfo() {
@@ -161,16 +196,16 @@ function actualizarUmbralInfo() {
 }
 
 async function iniciar() {
-  await cargarDiccionario();
   actualizarUmbralInfo();
   crearCytoscape();
   registrarEventos();
   bloquearEntrada(true);
-  mensaje("cargando modelo…");
+  mensaje("cargando vectores…");
   try {
-    await cargarModelo();
+    await cargarEmbeddings();
   } catch (e) {
-    return mensaje("no se pudo cargar el modelo", "error");
+    console.error(e);
+    return mensaje("no se pudieron cargar los vectores", "error");
   }
   bloquearEntrada(false);
   const parUrl = leerParamsPractica();
@@ -196,9 +231,7 @@ function sim(a, b) {
 async function asegurarSim(a, b) {
   const c = leerSimCache(a, b);
   if (c != null) return c;
-  const embA = await embedding(a);
-  const embB = await embedding(b);
-  const s = Math.round(producto(embA, embB) * 100);
+  const s = similitudPct(embedding(a), embedding(b));
   guardarSim(a, b, s);
   return s;
 }
@@ -325,7 +358,7 @@ function crearCytoscape() {
 }
 
 async function nuevoJuego(diario = false, par = null) {
-  if (!extractor) return;
+  if (!listo) return;
   ganado = false;
   extra = {};
   modo = diario ? MODO_DIARIO : MODO_PRACTICA;
@@ -587,13 +620,11 @@ async function anadirPalabra(cruda) {
     return mensajeSugerencia(p, sugerencias(p));
   }
 
-  mensaje("calculando…");
   try {
-    const embP = await embedding(p);
+    const embP = embedding(p);
     for (const w of enTablero) {
       if (w === p) continue;
-      const s = producto(embP, await embedding(w));
-      guardarSim(p, w, Math.round(s * 100));
+      guardarSim(p, w, similitudPct(embP, embedding(w)));
     }
   } catch (e) {
     return mensaje("error al calcular la similitud", "error");
