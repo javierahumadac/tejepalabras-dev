@@ -6,8 +6,8 @@
   "dim_original": 300,
   "dim": 64,
   "dims_pca": 64,
-  "n": 56273,
-  "scale": 0.006552017110539233,
+  "n": 56285,
+  "scale": 0.006552400082115113,
   "dtype": "int8",
   "vocab_file": "diccionario_es.vocab",
   "vectors_file": "embeddings.bin"
