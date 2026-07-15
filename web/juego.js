@@ -2,7 +2,7 @@
 // Vocabulario y similitud: diccionario_es.vocab + embeddings.bin (word2vec SBWC).
 
 // Retocado para word2vec SBWC (pares aleatorios ~p95≈33%; sinónimos 60–80%).
-const UMBRAL = 40;
+const UMBRAL = 39.5;
 const SIM_OBJETIVO_MIN = 5;
 const SIM_OBJETIVO_MAX = 10;
 
