@@ -1,10 +1,8 @@
 # Tejepalabras
 
-Juego de asociación de palabras en español. Conecta dos palabras poco relacionadas
-añadiendo palabras puente cuya similitud semántica supere un umbral.
+Juego de asociación de palabras en español. Conecta dos palabras poco relacionadas añadiendo palabras puente cuya similitud semántica supere un umbral.
 
-Inspirado en [Linxicon](https://linxicon.com/) (Trainwreck Labs). Proyecto independiente,
-no afiliado ni respaldado por sus autores.
+Inspirado en [Linxicon](https://linxicon.com/) (Trainwreck Labs). Proyecto independiente, no afiliado ni respaldado por sus autores.
 
 ## Cómo se juega
 

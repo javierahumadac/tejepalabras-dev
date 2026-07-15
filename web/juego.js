@@ -2,7 +2,7 @@
 // Vocabulario y similitud: diccionario_es.vocab + embeddings.bin (word2vec SBWC).
 
 // Retocado para word2vec SBWC (pares aleatorios ~p95≈33%; sinónimos 60–80%).
-const UMBRAL = 39.5;
+const UMBRAL = 35.5;
 const SIM_OBJETIVO_MIN = 5;
 const SIM_OBJETIVO_MAX = 10;
 
@@ -427,7 +427,7 @@ async function nuevoJuego(diario = false, par = null) {
   ejecutarLayout();
   actualizarMenuModos();
   actualizarUrl();
-  mensaje(ganado ? `puntaje: ${ultimoPuntaje}` : "", ganado ? "ok clicable" : "");
+  if (!ganado) mensaje("");
   $("#entrada").focus();
   guardarEstadoDiario();
 }
@@ -705,9 +705,26 @@ function calcularPuntaje(aristas, ruta) {
   return { verdes, grises, sueltos, puntaje };
 }
 
+/**
+ * Clasifica el puntaje final en bueno/regular/malo:
+ *  - malo: lo "desperdiciado" (grises + sueltos) triplica o supera a la ruta más corta.
+ *  - bueno: la ruta más corta pesa más que las palabras conectadas fuera de ruta
+ *    (incluye el caso perfecto de conexión directa, sin palabras extra).
+ *  - regular: cualquier otro caso intermedio.
+ */
+function colorPuntaje({ verdes, grises, sueltos }) {
+  if (verdes === 0 && grises === 0 && sueltos === 0) return "puntaje-bueno";
+  if (grises + sueltos >= verdes * 3) return "puntaje-malo";
+  if (verdes > (grises + sueltos)) return "puntaje-bueno";
+  return "puntaje-regular";
+}
+
 function mostrarResultado({ verdes, grises, sueltos, puntaje }) {
   ultimoPuntaje = puntaje;
-  $("#puntaje-total").textContent = puntaje;
+  const total = $("#puntaje-total");
+  total.textContent = puntaje;
+  total.classList.remove("puntaje-bueno", "puntaje-regular", "puntaje-malo");
+  total.classList.add(colorPuntaje({ verdes, grises, sueltos }));
   $("#puntaje-verdes-cant").textContent = verdes;
   $("#puntaje-verdes-total").textContent = verdes * PUNTOS_VERDE;
   $("#puntaje-grises-cant").textContent = grises;
@@ -722,7 +739,7 @@ function ganar(aristas) {
   const ruta = caminoMasCorto(aristas);
   marcarRuta(ruta);
   const resultado = calcularPuntaje(aristas, ruta);
-  mensaje(`puntaje: ${resultado.puntaje}`, "ok clicable");
+  mensaje(`puntaje: ${resultado.puntaje}`, `${colorPuntaje(resultado)} clicable`);
   bloquearEntrada(true);
   mostrarResultado(resultado);
 }
