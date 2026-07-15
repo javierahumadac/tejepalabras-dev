@@ -18,6 +18,13 @@ Todo corre en el navegador, sin backend:
 - **Vocabulario + similitud:** `web/diccionario_es.vocab` + `web/embeddings.bin` (word2vec SBWC, coseno en JS)
 - **Grafo:** [Cytoscape.js](https://js.cytoscape.org/)
 
+## Diccionarios usados
+
+`web/diccionario_es.vocab` se construye combinando varias listas de palabras (solo quedan las que además tienen vector en SBWC, ver más abajo):
+
+- [Listado de palabras RAE (23.8.1)](https://github.com/rubenperezm/ListadosPalabrasRAE) de rubenperezm, lemario base derivado del diccionario de la RAE.
+- [lemarios](https://github.com/olea/lemarios) de Santiago Olea, lemario general del español y conjugaciones de verbos, dominio público. Usado para completar palabras que el listado RAE no separaba (p. ej. sustantivos con forma propia en -a/-o como "música"/"músico") y para sumar formas verbales conjugadas.
+
 ## Modelo de similitud
 
 La similitud mide **uso compartido en contexto** (hipótesis distribucional), no parecido ortográfico ni subpalabras.
