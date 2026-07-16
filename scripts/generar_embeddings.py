@@ -37,7 +37,11 @@ CACHE_BZ2 = CACHE_DIR / "SBW-vectors-300-min5.txt.bz2"
 
 URL_VECTORES = "https://cs.famaf.unc.edu.ar/~ccardellino/SBWCE/SBW-vectors-300-min5.txt.bz2"
 
-DIMS = 64
+DIMS = 256
+D_ABTT = 10  # "All-but-the-Top" (Mu & Viswanath, 2018): quita las D componentes
+# principales dominantes antes del PCA final, para bajar la similitud "de
+# fondo" entre palabras no relacionadas sin afectar casi la de sinónimos
+# reales. Calibrado empíricamente (ver scripts/probar_all_but_top.py).
 VECINOS_EVAL = 3
 MAX_PALABRAS_EVAL = 30
 
@@ -134,10 +138,29 @@ def extraer_vectores(path_bz2: Path, pedido: set[str]) -> tuple[list[str], np.nd
     return palabras, np.stack(filas, axis=0)
 
 
+def all_but_the_top(matriz: np.ndarray, d: int) -> np.ndarray:
+    """Quita las D componentes principales dominantes (comunes a casi todas las
+    palabras) tras centrar. Ver scripts/probar_all_but_top.py para la
+    justificación empírica: esto separa mucho mejor el "ruido de fondo" entre
+    palabras no relacionadas de la similitud real entre sinónimos.
+    """
+    if d <= 0:
+        return matriz - matriz.mean(axis=0, keepdims=True)
+    centrado = matriz - matriz.mean(axis=0, keepdims=True)
+    _, _, vt = np.linalg.svd(centrado, full_matrices=False)
+    top = vt[:d]
+    proyeccion = centrado @ top.T
+    return centrado - proyeccion @ top
+
+
 def reducir_y_cuantizar(
-    matriz: np.ndarray, dims: int, semilla: int = 42
+    matriz: np.ndarray, dims: int, semilla: int = 42, d_abtt: int = 0
 ) -> tuple[np.ndarray, float, np.ndarray]:
     d_orig = matriz.shape[1]
+
+    print(f"  All-but-the-Top: quitando D={d_abtt} componente(s) dominante(s)…")
+    matriz = all_but_the_top(matriz, d_abtt)
+
     if dims >= d_orig:
         reducida = matriz.astype(np.float32, copy=True)
         print(f"  sin PCA (dims={dims} >= {d_orig})")
@@ -166,6 +189,18 @@ def ordenar_alfabetico(
     return [palabras[i] for i in orden], matriz[orden]
 
 
+def desordenar(
+    palabras: list[str], matriz: np.ndarray, semilla: int = 42
+) -> tuple[list[str], np.ndarray]:
+    """Baraja el orden final de palabras/vectores (con semilla fija para que
+    el resultado sea reproducible). El orden no importa para el juego: el
+    vocabulario se carga en un Set/Map, nunca se recorre por índice ni se
+    asume orden alfabético (ver web/juego.js)."""
+    rng = np.random.default_rng(semilla)
+    orden = rng.permutation(len(palabras))
+    return [palabras[i] for i in orden], matriz[orden]
+
+
 def escribir_salida(
     palabras: list[str],
     cuantizada: np.ndarray,
@@ -181,6 +216,7 @@ def escribir_salida(
         "dim_original": dims_orig,
         "dim": int(cuantizada.shape[1]),
         "dims_pca": dims,
+        "d_abtt": D_ABTT,
         "n": len(palabras),
         "scale": scale,
         "dtype": "int8",
@@ -230,9 +266,9 @@ def main() -> None:
 
     asegurar_descarga(CACHE_BZ2, URL_VECTORES)
     palabras, matriz = extraer_vectores(CACHE_BZ2, pedido)
-    palabras, matriz = ordenar_alfabetico(palabras, matriz)
+    palabras, matriz = desordenar(palabras, matriz)
     dims_orig = int(matriz.shape[1])
-    cuantizada, scale, unitaria = reducir_y_cuantizar(matriz, DIMS)
+    cuantizada, scale, unitaria = reducir_y_cuantizar(matriz, DIMS, d_abtt=D_ABTT)
     escribir_salida(palabras, cuantizada, scale, dims_orig, DIMS)
 
     evaluar(palabras, unitaria)

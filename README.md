@@ -33,6 +33,8 @@ La similitud mide **uso compartido en contexto** (hipótesis distribucional), no
 
 Se usan los embeddings **Word2Vec skip-gram** entrenados por [Cristian Cardellino](https://github.com/crscardellino) sobre el [Spanish Billion Word Corpus](https://crscardellino.ar/SBWCE/) (~1.4B palabras), redistribuidos en [dccuchile/spanish-word-embeddings](https://github.com/dccuchile/spanish-word-embeddings) (CC-BY-4.0).
 
+Los vectores originales (300 dimensiones) pasan por [&#34;All-but-the-Top&#34;](https://arxiv.org/abs/1702.01417) (Mu & Viswanath, 2018) —se les resta la dirección dominante común a casi cualquier palabra— y luego se reducen a 256 dimensiones con PCA y se cuantizan a int8 para achicar el archivo que descarga el navegador (`web/embeddings.bin`, ~31 MB). Ese preprocesado separa mucho mejor el "ruido de fondo" entre palabras no relacionadas de la similitud real entre sinónimos.
+
 ## Analítica (GoatCounter)
 
 El sitio publicado usa [GoatCounter](https://www.goatcounter.com/) para estadísticas anónimas de visitas y para registrar palabras rechazadas por el diccionario (por ejemplo, términos que un jugador cree que deberían existir). No usa cookies ni identifica a quien juega. El aviso al usuario está en el modal de ayuda.
