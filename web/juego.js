@@ -1163,6 +1163,8 @@ function registrarViewport() {
   let syncRaf = 0;
   let ultimoAncho = 0;
   let ultimoAlto = 0;
+  let ultimaAlturaBody = -1;
+  let ultimoTopBody = -1;
 
   // Safari iOS desplaza el visualViewport al abrir el teclado (offsetTop > 0)
   // mientras position:fixed sigue anclado al layout viewport: sin sincronizar
@@ -1171,11 +1173,11 @@ function registrarViewport() {
     const vv = window.visualViewport;
     const h = Math.round(vv ? vv.height : window.innerHeight);
     const top = Math.round(vv ? vv.offsetTop : 0);
+    if (h === ultimaAlturaBody && top === ultimoTopBody) return;
+    ultimaAlturaBody = h;
+    ultimoTopBody = top;
     document.body.style.height = `${h}px`;
     document.body.style.top = `${top}px`;
-    if (window.scrollY !== 0 || window.scrollX !== 0) {
-      window.scrollTo(0, 0);
-    }
   }
 
   function programarSyncAltura() {
@@ -1211,13 +1213,12 @@ function registrarViewport() {
     visualViewport.addEventListener("resize", programarSyncAltura);
     visualViewport.addEventListener("scroll", programarSyncAltura);
   }
-  window.addEventListener("resize", programarSyncAltura);
-  window.addEventListener("scroll", programarSyncAltura, { passive: true });
   syncAltura();
 
   if (esTactil) {
     entrada.addEventListener("focus", () => {
       document.body.classList.add("entrada-activa");
+      window.scrollTo(0, 0);
       syncAltura();
       // Safari anima el teclado con retraso; re-sincronizar tras el layout.
       setTimeout(syncAltura, 50);
