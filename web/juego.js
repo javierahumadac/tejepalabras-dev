@@ -1160,13 +1160,30 @@ function registrarViewport() {
   const contenedor = $("#grafo");
   const esTactil = matchMedia("(pointer: coarse)").matches;
   let debounceTimer = null;
+  let syncRaf = 0;
   let ultimoAncho = 0;
   let ultimoAlto = 0;
 
+  // Safari iOS desplaza el visualViewport al abrir el teclado (offsetTop > 0)
+  // mientras position:fixed sigue anclado al layout viewport: sin sincronizar
+  // top + height, el body queda fuera de lo visible (pantalla negra).
   function syncAltura() {
     const vv = window.visualViewport;
-    const h = vv ? vv.height : window.innerHeight;
-    document.body.style.height = `${Math.round(h)}px`;
+    const h = Math.round(vv ? vv.height : window.innerHeight);
+    const top = Math.round(vv ? vv.offsetTop : 0);
+    document.body.style.height = `${h}px`;
+    document.body.style.top = `${top}px`;
+    if (window.scrollY !== 0 || window.scrollX !== 0) {
+      window.scrollTo(0, 0);
+    }
+  }
+
+  function programarSyncAltura() {
+    if (syncRaf) return;
+    syncRaf = requestAnimationFrame(() => {
+      syncRaf = 0;
+      syncAltura();
+    });
   }
 
   function ajustarGrafoAlContenedor() {
@@ -1191,19 +1208,26 @@ function registrarViewport() {
   }
 
   if (window.visualViewport) {
-    visualViewport.addEventListener("resize", syncAltura);
-    visualViewport.addEventListener("scroll", syncAltura);
+    visualViewport.addEventListener("resize", programarSyncAltura);
+    visualViewport.addEventListener("scroll", programarSyncAltura);
   }
+  window.addEventListener("resize", programarSyncAltura);
+  window.addEventListener("scroll", programarSyncAltura, { passive: true });
   syncAltura();
 
   if (esTactil) {
     entrada.addEventListener("focus", () => {
       document.body.classList.add("entrada-activa");
       syncAltura();
+      // Safari anima el teclado con retraso; re-sincronizar tras el layout.
+      setTimeout(syncAltura, 50);
+      setTimeout(syncAltura, 300);
     });
     entrada.addEventListener("blur", () => {
       document.body.classList.remove("entrada-activa");
       syncAltura();
+      setTimeout(syncAltura, 50);
+      setTimeout(syncAltura, 300);
     });
   }
 }
