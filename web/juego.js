@@ -31,8 +31,28 @@ let pendienteDificil = null;
 let raeVisible = true;
 let hintVisible = true;
 let ayudaVista = false;
+let temaClaro = false;
 
 const CLAVE_DIFICULTAD = "tejepalabras-dificultad";
+
+/** Lee un token de color definido en estilos.css (:root). */
+function colorCss(nombre) {
+  return getComputedStyle(document.documentElement).getPropertyValue(nombre).trim();
+}
+
+function coloresTema() {
+  return {
+    fondo: colorCss("--fondo"),
+    superficie: colorCss("--superficie"),
+    borde: colorCss("--borde"),
+    bordeFuerte: colorCss("--borde-fuerte"),
+    texto: colorCss("--texto"),
+    textoSecundario: colorCss("--texto-secundario"),
+    textoDebil: colorCss("--texto-debil"),
+    exito: colorCss("--exito"),
+    acentoOscuro: colorCss("--acento-oscuro"),
+  };
+}
 
 function cargarBooleano(clave, porDefecto) {
   try {
@@ -73,6 +93,7 @@ function textoConfirmarDificultad(haciaDificil) {
 const CLAVE_RAE = "tejepalabras-rae";
 const CLAVE_HINT = "tejepalabras-hint";
 const CLAVE_AYUDA_VISTA = "tejepalabras-ayuda-vista";
+const CLAVE_TEMA = "tejepalabras-tema";
 
 function cargarAyudaVista() {
   ayudaVista = cargarBooleano(CLAVE_AYUDA_VISTA, false);
@@ -80,6 +101,24 @@ function cargarAyudaVista() {
 
 function guardarAyudaVista() {
   guardarBooleano(CLAVE_AYUDA_VISTA, ayudaVista);
+}
+
+function cargarTema() {
+  temaClaro = cargarBooleano(CLAVE_TEMA, false);
+}
+
+function guardarTema() {
+  guardarBooleano(CLAVE_TEMA, temaClaro);
+}
+
+function aplicarTema() {
+  if (temaClaro) document.documentElement.dataset.tema = "claro";
+  else delete document.documentElement.dataset.tema;
+}
+
+function actualizarTemaInfo() {
+  const switchTema = $("#switch-tema");
+  if (switchTema) switchTema.checked = temaClaro;
 }
 
 function cargarRae() {
@@ -345,6 +384,9 @@ async function iniciar() {
   actualizarRaeInfo();
   cargarHint();
   actualizarHintInfo();
+  cargarTema();
+  aplicarTema();
+  actualizarTemaInfo();
   cargarAyudaVista();
   crearCytoscape();
   registrarEventos();
@@ -398,106 +440,116 @@ function guardarSim(a, b, val) {
   (extra[b] = extra[b] || {})[a] = val;
 }
 
+function estiloGrafo() {
+  const c = coloresTema();
+  return [
+    {
+      selector: "node",
+      style: {
+        label: "data(id)",
+        "font-family": "system-ui, sans-serif",
+        "font-size": 14,
+        color: c.texto,
+        "text-valign": "center",
+        "text-halign": "center",
+        width: "label",
+        height: 32,
+        padding: 8,
+        shape: "round-rectangle",
+        "background-color": c.superficie,
+        "border-width": 1,
+        "border-color": c.bordeFuerte,
+      },
+    },
+    {
+      selector: "node.objetivo",
+      style: {
+        "border-color": c.textoSecundario,
+        "border-width": 2,
+        "font-weight": 700,
+      },
+    },
+    {
+      selector: "node.aislado",
+      style: {
+        "border-color": c.acentoOscuro,
+        "border-width": 2,
+      },
+    },
+    {
+      selector: "edge",
+      style: {
+        width: "data(peso)",
+        "line-color": c.borde,
+        "curve-style": "bezier",
+        label: "data(etiqueta)",
+        "font-size": 9,
+        color: c.textoDebil,
+        "text-background-color": c.fondo,
+        "text-background-opacity": 1,
+        "text-background-padding": 2,
+      },
+    },
+    {
+      selector: "edge.ruta",
+      style: { "line-color": c.exito, color: c.exito },
+    },
+    {
+      selector: "node.conectado",
+      style: { "border-color": c.exito, "border-width": 2 },
+    },
+    {
+      selector: "node.captura",
+      style: {
+        label: "",
+        "text-opacity": 0,
+        width: 36,
+        height: 36,
+        padding: 0,
+        "border-width": 0,
+        "corner-radius": 4,
+        "background-color": c.bordeFuerte,
+      },
+    },
+    {
+      selector: "node.captura.objetivo",
+      style: {
+        label: "data(id)",
+        "text-opacity": 1,
+        color: c.fondo,
+        "font-weight": 700,
+        width: "label",
+        height: 32,
+        padding: 8,
+        "background-color": c.textoSecundario,
+      },
+    },
+    {
+      selector: "node.captura.conectado",
+      style: { "background-color": c.exito },
+    },
+    {
+      selector: "node.captura.aislado",
+      style: { "background-color": c.acentoOscuro },
+    },
+    {
+      selector: "edge.captura",
+      style: { label: "", "text-opacity": 0 },
+    },
+  ];
+}
+
+function aplicarEstilosGrafo() {
+  if (!cy) return;
+  cy.style().fromJson(estiloGrafo()).update();
+}
+
 function crearCytoscape() {
   cy = cytoscape({
     container: $("#grafo"),
     minZoom: 0.3,
     maxZoom: 1.5,
-    style: [
-      {
-        selector: "node",
-        style: {
-          label: "data(id)",
-          "font-family": "system-ui, sans-serif",
-          "font-size": 14,
-          color: "#eee",
-          "text-valign": "center",
-          "text-halign": "center",
-          width: "label",
-          height: 32,
-          padding: 8,
-          shape: "round-rectangle",
-          "background-color": "#1a1a1a",
-          "border-width": 1,
-          "border-color": "#444",
-        },
-      },
-      {
-        selector: "node.objetivo",
-        style: {
-          "border-color": "#ccc",
-          "border-width": 2,
-          "font-weight": 700,
-        },
-      },
-      {
-        selector: "node.aislado",
-        style: {
-          "border-color": "#8a1c36",
-          "border-width": 2,
-        },
-      },
-      {
-        selector: "edge",
-        style: {
-          width: "data(peso)",
-          "line-color": "#333",
-          "curve-style": "bezier",
-          label: "data(etiqueta)",
-          "font-size": 9,
-          color: "#666",
-          "text-background-color": "#111",
-          "text-background-opacity": 1,
-          "text-background-padding": 2,
-        },
-      },
-      {
-        selector: "edge.ruta",
-        style: { "line-color": "#3dd68c", color: "#3dd68c" },
-      },
-      {
-        selector: "node.conectado",
-        style: { "border-color": "#3dd68c", "border-width": 2 },
-      },
-      {
-        selector: "node.captura",
-        style: {
-          label: "",
-          "text-opacity": 0,
-          width: 36,
-          height: 36,
-          padding: 0,
-          "border-width": 0,
-          "corner-radius": 4,
-          "background-color": "#444",
-        },
-      },
-      {
-        selector: "node.captura.objetivo",
-        style: {
-          label: "data(id)",
-          "text-opacity": 1,
-          color: "#111",
-          "font-weight": 700,
-          width: "label",
-          height: 32,
-          padding: 8,
-          "background-color": "#ccc",
-        },
-      },
-      {
-        selector: "node.captura.conectado",
-        style: { "background-color": "#3dd68c" },
-      },
-      {
-        selector: "node.captura.aislado",
-        style: { "background-color": "#8a1c36" },
-      },
-      {
-        selector: "edge.captura",
-        style: { label: "", "text-opacity": 0 },
-      },
-    ],
+    style: estiloGrafo(),
   });
 
   cy.on("tap", "node", (e) => void mostrarPanel(e.target.id()));
@@ -596,6 +648,7 @@ function actualizarMenuModos() {
   actualizarUmbralInfo();
   actualizarRaeInfo();
   actualizarHintInfo();
+  actualizarTemaInfo();
 }
 
 
@@ -1161,8 +1214,11 @@ async function esperarRepintado() {
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 }
 
-const FONDO_CAPTURA = "#111111";
 const ASPECTO_CAPTURA = 4 / 3;
+
+function fondoCaptura() {
+  return colorCss("--fondo") || "#111111";
+}
 
 async function ajustarAspecto43(blob) {
   const bitmap = await createImageBitmap(blob);
@@ -1183,7 +1239,7 @@ async function ajustarAspecto43(blob) {
     canvas.width = canvasW;
     canvas.height = canvasH;
     const ctx = canvas.getContext("2d");
-    ctx.fillStyle = FONDO_CAPTURA;
+    ctx.fillStyle = fondoCaptura();
     ctx.fillRect(0, 0, canvasW, canvasH);
     ctx.drawImage(bitmap, Math.floor((canvasW - w) / 2), Math.floor((canvasH - h) / 2));
 
@@ -1204,7 +1260,7 @@ async function capturarGrafo() {
   try {
     const blob = await cy.png({
       output: "blob-promise",
-      bg: FONDO_CAPTURA,
+      bg: fondoCaptura(),
       full: true,
       scale: 2,
     });
@@ -1351,6 +1407,14 @@ function registrarMenuModos() {
     hintVisible = e.target.checked;
     guardarHint();
     actualizarHintInfo();
+  });
+
+  $("#switch-tema").addEventListener("change", (e) => {
+    temaClaro = e.target.checked;
+    guardarTema();
+    aplicarTema();
+    actualizarTemaInfo();
+    aplicarEstilosGrafo();
   });
 }
 

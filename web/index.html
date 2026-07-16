@@ -4,6 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <title>Tejepalabras</title>
+  <script>
+    try {
+      if (localStorage.getItem("tejepalabras-tema") === "1") {
+        document.documentElement.dataset.tema = "claro";
+      }
+    } catch (_) {}
+  </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.2/cytoscape.min.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
   <link rel="stylesheet" href="estilos.css" />
@@ -186,6 +193,15 @@
             </span>
           </label>
         </div>
+        <div class="modal-umbral-fila">
+          <p class="modal-umbral">Modo claro.</p>
+          <label class="switch-simple" for="switch-tema">
+            <span class="switch-simple-pista">
+              <input type="checkbox" id="switch-tema" aria-label="Modo claro" />
+              <span class="switch-simple-boton" aria-hidden="true"></span>
+            </span>
+          </label>
+        </div>
       </div>
     </div>
   </div>
@@ -260,6 +276,6 @@
   <script data-goatcounter="%%GOATCOUNTER_ENDPOINT%%"
           async src="//gc.zgo.at/count.js"></script>
   <!-- GOATCOUNTER_END -->
-  <script type="module" src="juego.js?v=23"></script>
+  <script type="module" src="juego.js?v=24"></script>
 </body>
 </html>
