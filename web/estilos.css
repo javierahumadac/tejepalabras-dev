@@ -550,6 +550,14 @@ body.entrada-activa footer {
   font-size: 0.95em;
   vertical-align: -0.05em;
 }
+.modal-cuerpo a {
+  color: var(--texto);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.modal-cuerpo a:hover {
+  color: var(--acento);
+}
 .modal-privacidad {
   margin-top: 4px;
   padding-top: 12px;
@@ -575,19 +583,6 @@ body.entrada-activa footer {
   border-top: none;
   padding-top: 0;
 }
-.modal-creditos {
-  margin: 0 0 10px;
-  font-size: 12px;
-  color: var(--texto-debil);
-}
-.modal-creditos a {
-  color: var(--texto-apagado);
-  text-decoration: none;
-}
-.modal-creditos a:hover {
-  color: var(--texto-secundario);
-  text-decoration: underline;
-}
 .modal-enlaces {
   display: flex;
   justify-content: center;
@@ -609,6 +604,16 @@ body.entrada-activa footer {
 .modal-enlaces .bi {
   font-size: 1.25rem;
   line-height: 1;
+}
+.modal-enlaces .icono-svg {
+  display: block;
+  width: 1.25rem;
+  height: 1.25rem;
+  background-color: currentColor;
+}
+.modal-enlaces .icono-kofi {
+  -webkit-mask: url("icons/kofi.svg") center / contain no-repeat;
+  mask: url("icons/kofi.svg") center / contain no-repeat;
 }
 
 .puntaje-total {

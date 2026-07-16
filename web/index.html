@@ -95,6 +95,10 @@
             <i class="bi bi-sliders" aria-hidden="true"></i>
             <span>Modos de juego</span>
           </button>
+          <button type="button" class="menu-modo-opcion" data-ayuda="apoyar">
+            <i class="bi bi-heart" aria-hidden="true"></i>
+            <span>Cómo apoyar</span>
+          </button>
         </div>
 
         <div id="ayuda-detalle" class="ayuda-detalle oculto">
@@ -114,8 +118,10 @@
             <p>Si te atascas, puedes presionar los nodos <em>origen</em> o <em>destino</em> y presionar el icono <i class="bi bi-lightbulb" aria-hidden="true"></i> para ver una lista de palabras similares.</p>
           </div>
           <div class="ayuda-seccion oculto" data-ayuda-seccion="funciona">
+            <p>Este juego está inspirado en <a href="https://linxicon.com/" target="_blank" rel="noopener noreferrer">Linxicon</a>, ¡por favor visítalo!</p>
             <p>La similitud mide <em>uso compartido en contexto</em> (embeddings), no ortografía ni sonido.</p>
             <p>Todo corre en el navegador: vocabulario y vectores se cargan localmente.</p>
+            <p>Si quieres más detalles, puedes ver el código en <a href="https://github.com/javierahumadac/tejepalabras" target="_blank" rel="noopener noreferrer">github.com/javierahumadac/tejepalabras</a>.</p>
             <p class="modal-privacidad">Uso analítica anónima con <a href="https://www.goatcounter.com/" target="_blank" rel="noopener noreferrer">GoatCounter</a> para contar visitas y registrar palabras rechazadas. No cookies.</p>
           </div>
           <div class="ayuda-seccion oculto" data-ayuda-seccion="modos">
@@ -125,18 +131,23 @@
             <p></p>
             <p>El <em>modo difícil</em> sube el umbral mínimo de similitud para que dos palabras se enlazen.</p>
           </div>
+          <div class="ayuda-seccion oculto" data-ayuda-seccion="apoyar">
+            <p>¡Muchas gracias! Ya jugando me ayudas muchísimo.</p>
+            <p>Si quieres apoyarme aún más, puedes compartir el juego presionando <i class="bi bi-share" aria-hidden="true"></i>.</p>
+            <p>Si crees que me lo merezco, opcionalmente me puedes <a href="https://ko-fi.com/jahumada" target="_blank" rel="noopener noreferrer">comprar un café</a>.</p>
+          </div>
         </div>
       </div>
       <div class="modal-pie">
-        <p class="modal-creditos">
-          Inspirado en <a href="https://linxicon.com/" target="_blank" rel="noopener noreferrer">Linxicon</a>
-        </p>
         <div class="modal-enlaces">
           <a href="https://github.com/javierahumadac/tejepalabras" target="_blank" rel="noopener noreferrer" aria-label="Código en GitHub" title="GitHub">
             <i class="bi bi-github" aria-hidden="true"></i>
           </a>
           <a href="https://www.linkedin.com/in/javier-ahumada-c/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn de Javier Ahumada" title="LinkedIn">
             <i class="bi bi-linkedin" aria-hidden="true"></i>
+          </a>
+          <a href="https://ko-fi.com/jahumada" target="_blank" rel="noopener noreferrer" aria-label="Invítame un café en Ko-fi" title="Ko-fi">
+            <span class="icono-svg icono-kofi" aria-hidden="true"></span>
           </a>
         </div>
       </div>

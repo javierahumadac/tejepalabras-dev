@@ -1454,6 +1454,7 @@ function registrarEventos() {
     trucos: "Trucos",
     funciona: "Cómo funciona",
     modos: "Modos de juego",
+    apoyar: "Cómo apoyar",
   };
 
   const mostrarAyudaIndice = () => {
