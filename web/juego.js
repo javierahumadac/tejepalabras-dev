@@ -1,7 +1,3 @@
-// Tejepalabras — juego en el navegador (sin backend).
-// Objetivos: diccionario_es.pool. Entrada del jugador: diccionario_es.vocab.
-// Similitud: embeddings.bin (word2vec SBWC).
-
 // Retocado para word2vec SBWC + PCA 256d con "All-but-the-Top" (quita las
 // direcciones dominantes comunes a casi toda palabra antes de reducir
 // dimensiones; ver scripts/probar_all_but_top.py): pares aleatorios
@@ -23,12 +19,18 @@ let destino = null;
 let vecinosOrigen = [];
 let vecinosDestino = [];
 let enTablero = new Set();
-let cy = null;
+let cy = null; // Graph visualization
+
+// Estados
 let ganado = false;
 let ultimoPuntaje = null;
 let listo = false;
 let restaurando = false;
 let dificil = false;
+let pendienteDificil = null;
+let raeVisible = true;
+let hintVisible = true;
+let ayudaVista = false;
 
 const CLAVE_DIFICULTAD = "tejepalabras-dificultad";
 
@@ -61,9 +63,12 @@ function umbralActual() {
   return dificil ? UMBRAL_DIFICIL : UMBRAL_NORMAL;
 }
 
-let raeVisible = true;
-let hintVisible = true;
-let ayudaVista = false;
+function textoConfirmarDificultad(haciaDificil) {
+  const desde = haciaDificil ? UMBRAL_NORMAL : UMBRAL_DIFICIL;
+  const hacia = haciaDificil ? UMBRAL_DIFICIL : UMBRAL_NORMAL;
+  const cambio = haciaDificil ? "aumentará" : "disminuirá";
+  return `La similitud que tienen que tener 2 palabras para enlazarse ${cambio} (${desde}% → ${hacia}%) y se limpiará el tablero. ¿Continuar?`;
+}
 
 const CLAVE_RAE = "tejepalabras-rae";
 const CLAVE_HINT = "tejepalabras-hint";
@@ -97,13 +102,10 @@ const MODO_DIARIO = "diario";
 const MODO_PRACTICA = "practica";
 let modo = MODO_DIARIO;
 
-// Guardamos el progreso del reto diario en localStorage: GitHub Pages es
-// hosting estático (sin backend/BD), así que el único "caché" posible del
-// grafo armado por la persona vive en su propio navegador.
+// Guardamos el progreso del reto diario en localStorage
 const CLAVE_DIARIO = "tejepalabras-diario-estado";
 
-// PRNG determinístico (mulberry32) sembrado con la fecha de hoy: mismo
-// resultado para todo el mundo el mismo día, sin backend ni build extra.
+// PRNG determinístico (mulberry32) sembrado con la fecha de hoy
 function seedDesdeTexto(str) {
   let h = 1779033703 ^ str.length;
   for (let i = 0; i < str.length; i++) {
@@ -167,7 +169,7 @@ function guardarEstadoDiario() {
       })
     );
   } catch {
-    // localStorage puede no estar disponible (modo privado, cuotas, etc.); sin caché no pasa nada grave.
+    // localStorage puede no estar disponible.
   }
 }
 
@@ -327,6 +329,13 @@ function actualizarHintInfo() {
   const switchHint = $("#switch-hint");
   if (switchHint) switchHint.checked = hintVisible;
   actualizarVisibilidadHint();
+}
+
+function cancelarCambioDificultad() {
+  pendienteDificil = null;
+  const switchDificultad = $("#switch-dificultad");
+  if (switchDificultad) switchDificultad.checked = dificil;
+  $("#modal-confirmar-dificultad")?.classList.add("oculto");
 }
 
 async function iniciar() {
@@ -536,6 +545,26 @@ async function nuevoJuego(diario = false, par = null) {
   guardarEstadoDiario();
 }
 
+/** Deja solo origen y destino; quita el resto de palabras del tablero. */
+async function limpiarTablero() {
+  if (!origen || !destino) return;
+  ganado = false;
+  ultimoPuntaje = null;
+  $("#panel").classList.add("oculto");
+  $("#modal-final").classList.add("oculto");
+  bloquearEntrada(false);
+  enTablero = new Set([origen, destino]);
+  cy.elements().remove();
+  cy.add([
+    { data: { id: origen }, classes: "objetivo" },
+    { data: { id: destino }, classes: "objetivo" },
+  ]);
+  await reconstruir();
+  ejecutarLayout();
+  if (!ganado) mensaje("");
+  guardarEstadoDiario();
+}
+
 /** Reinserta, en orden, las palabras que la persona ya había agregado hoy. */
 async function restaurarPalabras(palabras) {
   restaurando = true;
@@ -607,11 +636,11 @@ async function elegirObjetivos(rng = Math.random) {
     if (s < SIM_OBJETIVO_MIN || s > SIM_OBJETIVO_MAX) continue;
     // console.log(`[elegirObjetivos] intento ${intento}: sim en rango, revisando puentes…`);
     if (tieneSuficientesPuentes(a, b)) {
-      // console.log(`[elegirObjetivos] ✅ elegido "${a}" ↔ "${b}" en el intento ${intento}`);
+      // console.log(`[elegirObjetivos] elegido "${a}" ↔ "${b}" en el intento ${intento}`);
       return [a, b];
     }
   }
-  // console.log("[elegirObjetivos] ⚠️ se agotaron los N_INTENTOS_ELECCION_OBJETIVOS intentos, usando fallback fijo");
+  // console.log("[elegirObjetivos] se agotaron los N_INTENTOS_ELECCION_OBJETIVOS intentos, usando fallback fijo");
   return [palabrasPool[0], palabrasPool[palabrasPool.length - 1]];
 }
 
@@ -680,10 +709,6 @@ function construirUnionFind(aristas) {
   return find;
 }
 
-/**
- * Un nodo está "aislado" (en rojo) si no pertenece a la red de origen ni a
- * la de destino, aunque esté enlazado a otras palabras sueltas.
- */
 function marcarAislados(aristas) {
   const find = construirUnionFind(aristas);
   const compOrigen = find(origen);
@@ -1136,6 +1161,40 @@ async function esperarRepintado() {
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 }
 
+const FONDO_CAPTURA = "#111111";
+const ASPECTO_CAPTURA = 4 / 3;
+
+async function ajustarAspecto43(blob) {
+  const bitmap = await createImageBitmap(blob);
+  try {
+    const { width: w, height: h } = bitmap;
+    const ratio = w / h;
+    if (Math.abs(ratio - ASPECTO_CAPTURA) < 0.001) return blob;
+
+    let canvasW = w;
+    let canvasH = h;
+    if (ratio > ASPECTO_CAPTURA) {
+      canvasH = Math.ceil(w / ASPECTO_CAPTURA);
+    } else {
+      canvasW = Math.ceil(h * ASPECTO_CAPTURA);
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = canvasW;
+    canvas.height = canvasH;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = FONDO_CAPTURA;
+    ctx.fillRect(0, 0, canvasW, canvasH);
+    ctx.drawImage(bitmap, Math.floor((canvasW - w) / 2), Math.floor((canvasH - h) / 2));
+
+    return await new Promise((resolve, reject) => {
+      canvas.toBlob((out) => (out ? resolve(out) : reject(new Error("toBlob falló"))), "image/png");
+    });
+  } finally {
+    bitmap.close();
+  }
+}
+
 async function capturarGrafo() {
   $("#panel").classList.add("oculto");
   cy.nodes().addClass("captura");
@@ -1143,12 +1202,13 @@ async function capturarGrafo() {
   cy.fit(cy.nodes(), 40);
   await esperarRepintado();
   try {
-    return await cy.png({
+    const blob = await cy.png({
       output: "blob-promise",
-      bg: "#111111",
+      bg: FONDO_CAPTURA,
       full: true,
       scale: 2,
     });
+    return await ajustarAspecto43(blob);
   } finally {
     cy.nodes().removeClass("captura");
     cy.edges().removeClass("captura");
@@ -1166,9 +1226,7 @@ function registrarViewport() {
   let ultimaAlturaBody = -1;
   let ultimoTopBody = -1;
 
-  // Safari iOS desplaza el visualViewport al abrir el teclado (offsetTop > 0)
-  // mientras position:fixed sigue anclado al layout viewport: sin sincronizar
-  // top + height, el body queda fuera de lo visible (pantalla negra).
+  // Safari iOS desplaza el visualViewport al abrir el teclado (offsetTop > 0), mientras position: fixed sigue anclado al layout viewport, sin sincronizar top + height, el body queda fuera de lo visible (pantalla negra).
   function syncAltura() {
     const vv = window.visualViewport;
     const h = Math.round(vv ? vv.height : window.innerHeight);
@@ -1220,7 +1278,7 @@ function registrarViewport() {
       document.body.classList.add("entrada-activa");
       window.scrollTo(0, 0);
       syncAltura();
-      // Safari anima el teclado con retraso; re-sincronizar tras el layout.
+      // Safari anima el teclado con retraso, re-sincronizar tras el layout.
       setTimeout(syncAltura, 50);
       setTimeout(syncAltura, 300);
     });
@@ -1257,15 +1315,31 @@ function registrarMenuModos() {
     });
   });
 
-  $("#switch-dificultad").addEventListener("change", async (e) => {
-    dificil = e.target.checked;
+  const modalConfirmar = $("#modal-confirmar-dificultad");
+  const switchDificultad = $("#switch-dificultad");
+
+  const aceptarCambioDificultad = async () => {
+    if (pendienteDificil == null) return;
+    dificil = pendienteDificil;
+    pendienteDificil = null;
+    modalConfirmar.classList.add("oculto");
     guardarDificultad();
     actualizarUmbralInfo();
-    if (listo && enTablero.size) {
-      await reconstruir();
-      ejecutarLayout();
-    }
+    if (listo && origen && destino) await limpiarTablero();
+  };
+
+  switchDificultad.addEventListener("change", (e) => {
+    pendienteDificil = e.target.checked;
+    $("#modal-confirmar-dificultad-texto").textContent =
+      textoConfirmarDificultad(pendienteDificil);
+    modalConfirmar.classList.remove("oculto");
   });
+
+  $("#modal-confirmar-dificultad-aceptar").addEventListener("click", () => {
+    void aceptarCambioDificultad();
+  });
+  $("#modal-confirmar-dificultad-cancelar").addEventListener("click", cancelarCambioDificultad);
+  modalConfirmar.querySelector("[data-cerrar-confirmar-dificultad]").addEventListener("click", cancelarCambioDificultad);
 
   $("#switch-rae").addEventListener("change", (e) => {
     raeVisible = e.target.checked;
@@ -1307,6 +1381,7 @@ function registrarEventos() {
   const ayuda = $("#ayuda");
   const menuModos = $("#menu-modos");
   const modalFinal = $("#modal-final");
+  const modalConfirmarDificultad = $("#modal-confirmar-dificultad");
   const abrirAyuda = () => ayuda.classList.remove("oculto");
   const cerrarAyuda = () => ayuda.classList.add("oculto");
   const cerrarMenuModos = () => menuModos.classList.add("oculto");
@@ -1327,7 +1402,8 @@ function registrarEventos() {
 
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
-    if (!menuModos.classList.contains("oculto")) cerrarMenuModos();
+    if (!modalConfirmarDificultad.classList.contains("oculto")) cancelarCambioDificultad();
+    else if (!menuModos.classList.contains("oculto")) cerrarMenuModos();
     else if (!ayuda.classList.contains("oculto")) cerrarAyuda();
     else if (!modalFinal.classList.contains("oculto")) cerrarModalFinal();
   });

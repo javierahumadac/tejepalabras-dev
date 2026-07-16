@@ -196,10 +196,28 @@
     </div>
   </div>
 
+  <div id="modal-confirmar-dificultad" class="modal oculto" role="dialog" aria-modal="true" aria-labelledby="modal-confirmar-dificultad-titulo">
+    <div class="modal-fondo" data-cerrar-confirmar-dificultad></div>
+    <div class="modal-caja modal-caja-compacta">
+      <div class="modal-cabecera">
+        <div class="modal-titulo-wrap">
+          <strong id="modal-confirmar-dificultad-titulo">Cambiar dificultad</strong>
+        </div>
+      </div>
+      <div class="modal-cuerpo">
+        <p id="modal-confirmar-dificultad-texto">La similitud que tienen que tener 2 palabras para enlazarse cambiará y se limpiará el tablero. ¿Continuar?</p>
+      </div>
+      <div class="modal-pie modal-acciones">
+        <button type="button" id="modal-confirmar-dificultad-cancelar" class="btn-modal btn-modal-secundario">Cancelar</button>
+        <button type="button" id="modal-confirmar-dificultad-aceptar" class="btn-modal btn-modal-primario">Aceptar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- GOATCOUNTER_START -->
   <script data-goatcounter="%%GOATCOUNTER_ENDPOINT%%"
           async src="//gc.zgo.at/count.js"></script>
   <!-- GOATCOUNTER_END -->
-  <script type="module" src="juego.js?v=20"></script>
+  <script type="module" src="juego.js?v=23"></script>
 </body>
 </html>

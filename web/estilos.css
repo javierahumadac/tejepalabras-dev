@@ -609,3 +609,36 @@ body.entrada-activa footer {
 }
 .btn-compartir-final:hover { background: #2a2a2a; }
 .btn-compartir-final .bi { font-size: 1rem; }
+
+.modal-caja-compacta {
+  max-height: none;
+}
+.modal-acciones {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.btn-modal {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid #333;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-modal-secundario {
+  background: transparent;
+  color: #ccc;
+}
+.btn-modal-secundario:hover {
+  background: #222;
+  color: #eee;
+}
+.btn-modal-primario {
+  background: #eee;
+  border-color: #eee;
+  color: #111;
+}
+.btn-modal-primario:hover {
+  background: #fff;
+}
