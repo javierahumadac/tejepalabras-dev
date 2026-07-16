@@ -27,13 +27,33 @@ Todo corre en el navegador, sin backend:
 - Marcas/nombres comerciales populares. **No provienen de ningún dataset o listado externo**: es una lista obtenida por un LLM.
 - Países, territorios y gentilicios (masculino/femenino), a partir del [Anexo:Gentilicios](https://es.wikipedia.org/wiki/Lista_de_gentilicios_ordenada_por_top%C3%B3nimo) de Wikipedia en español.
 
+## Pool de palabras
+
+`web/diccionario_es.pool` se construye a partir de palabras **válidas** (presentes en `diccionario_es.vocab`), considerando su frecuencia:
+
+- [CORPES XXI](https://www.rae.es/corpes/assets/rae/files/corpes/corpes_lemas.zip) de RAE, CC BY-SA 4.0, lemario con lista total de frecuencias.
+- [Lista de Frecuencias de Palabras del Castellano de Chile (LIFCACH 2.0)](https://sadowsky.cl/lifcach.html) de Sadowsky & Martínez.
+- Países y territorios a partir del [Anexo:Gentilicios](https://es.wikipedia.org/wiki/Lista_de_gentilicios_ordenada_por_top%C3%B3nimo) de Wikipedia en español.
+- Animales (reales, extintos y fantásticos) a partir del [Apéndice:Animales](https://es.wiktionary.org/wiki/Ap%C3%A9ndice:Animales) de Wikcionario en español.
+- Formas geométricas y afines a partir del [Apéndice:Formas](https://es.wiktionary.org/wiki/Ap%C3%A9ndice:Formas) de Wikcionario en español.
+- Términos de química a partir del [Apéndice:Química](https://es.wiktionary.org/wiki/Ap%C3%A9ndice:Qu%C3%ADmica) de Wikcionario en español.
+
 ## Modelo de similitud
 
 La similitud mide **uso compartido en contexto** (hipótesis distribucional), no parecido ortográfico ni subpalabras.
 
 Se usan los embeddings **Word2Vec skip-gram** entrenados por [Cristian Cardellino](https://github.com/crscardellino) sobre el [Spanish Billion Word Corpus](https://crscardellino.ar/SBWCE/) (~1.4B palabras), redistribuidos en [dccuchile/spanish-word-embeddings](https://github.com/dccuchile/spanish-word-embeddings) (CC-BY-4.0).
 
-Los vectores originales (300 dimensiones) pasan por [&#34;All-but-the-Top&#34;](https://arxiv.org/abs/1702.01417) (Mu & Viswanath, 2018) —se les resta la dirección dominante común a casi cualquier palabra— y luego se reducen a 256 dimensiones con PCA y se cuantizan a int8 para achicar el archivo que descarga el navegador (`web/embeddings.bin`, ~31 MB). Ese preprocesado separa mucho mejor el "ruido de fondo" entre palabras no relacionadas de la similitud real entre sinónimos.
+Los vectores originales (300 dimensiones) pasan por [&#34;All-but-the-Top&#34;](https://arxiv.org/abs/1702.01417) (Mu & Viswanath, 2018), se les resta la dirección dominante común a casi cualquier palabra y luego se reducen a 256 dimensiones con PCA y se cuantizan a int8. Ese preprocesado separa mucho mejor el "ruido de fondo" entre palabras no relacionadas de la similitud real entre sinónimos.
+
+## Despliegue (GitHub Pages)
+
+Hay dos versiones publicadas en GitHub Pages, cada una en su propio repositorio:
+
+| Versión    | Repositorio                                                           | URL                                                |
+| ----------- | --------------------------------------------------------------------- | -------------------------------------------------- |
+| Producción | [tejepalabras](https://github.com/javierahumadac/tejepalabras)         | https://javierahumadac.github.io/tejepalabras/     |
+| Desarrollo  | [tejepalabras-dev](https://github.com/javierahumadac/tejepalabras-dev) | https://javierahumadac.github.io/tejepalabras-dev/ |
 
 ## Analítica (GoatCounter)
 

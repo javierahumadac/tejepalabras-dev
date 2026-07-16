@@ -1,5 +1,6 @@
 // Tejepalabras — juego en el navegador (sin backend).
-// Vocabulario y similitud: diccionario_es.vocab + embeddings.bin (word2vec SBWC).
+// Objetivos: diccionario_es.pool. Entrada del jugador: diccionario_es.vocab.
+// Similitud: embeddings.bin (word2vec SBWC).
 
 // Retocado para word2vec SBWC + PCA 256d con "All-but-the-Top" (quita las
 // direcciones dominantes comunes a casi toda palabra antes de reducir
@@ -11,10 +12,11 @@ const SIM_OBJETIVO_MIN = 0;
 const SIM_OBJETIVO_MAX = 5;
 const PUENTES_MIN = 5;
 const UMBRAL_PUENTES = 50;
+const N_INTENTOS_ELECCION_OBJETIVOS = 1000;
 
 const GRADO_MAX = 10; // los enlaces "se rompen" si un nodo acumula demasiados
 
-let palabrasPool = [];     // palabras con vector para elegir objetivos al azar
+let palabrasPool = [];     // subset frecuente (pool) para elegir origen/destino
 let extra = {};            // similitudes: extra[a][b] = %
 let origen = null;
 let destino = null;
@@ -200,8 +202,9 @@ function normalizarL2(vec) {
 
 async function cargarEmbeddings() {
   const meta = await (await fetch("embeddings.json", { cache: "no-store" })).json();
-  const [vocabTxt, buf] = await Promise.all([
+  const [vocabTxt, poolTxt, buf] = await Promise.all([
     (await fetch(meta.vocab_file || "diccionario_es.vocab", { cache: "no-store" })).text(),
+    (await fetch("diccionario_es.pool", { cache: "no-store" })).text(),
     (await fetch(meta.vectors_file || "embeddings.bin", { cache: "no-store" })).arrayBuffer(),
   ]);
 
@@ -223,7 +226,6 @@ async function cargarEmbeddings() {
   const scale = meta.scale;
   const dim = meta.dim;
   diccionario = new Set();
-  palabrasPool = palabras;
   cacheEmb.clear();
   for (let i = 0; i < meta.n; i++) {
     const w = palabras[i];
@@ -234,6 +236,17 @@ async function cargarEmbeddings() {
     cacheEmb.set(w, vec);
     diccionario.add(w);
   }
+
+  // Origen/destino salen del pool (palabras frecuentes ∩ vocab con vector).
+  palabrasPool = [];
+  for (const linea of poolTxt.split("\n")) {
+    const p = norm(linea);
+    if (p && cacheEmb.has(p)) palabrasPool.push(p);
+  }
+  if (!palabrasPool.length) {
+    throw new Error("pool vacío o sin solapamiento con el vocab");
+  }
+
   listo = true;
 }
 
@@ -576,29 +589,29 @@ function tieneSuficientesPuentes(a, b, minimo = PUENTES_MIN) {
   const { cuenta: cuentaA, vecinos: vecinosA } = contarVecinos(a, minimo);
   const { cuenta: cuentaB, vecinos: vecinosB } = contarVecinos(b, minimo);
   const ok = cuentaA >= minimo && cuentaB >= minimo;
-  console.log(
-    `[puentes] "${a}": ${cuentaA}/${minimo}${cuentaA >= minimo ? " ✅" : " ❌"} | ` +
-      `"${b}": ${cuentaB}/${minimo}${cuentaB >= minimo ? " ✅" : " ❌"} → ${ok ? "✅" : "❌"}`
-  );
-  console.table([...vecinosA.map((v) => ({ de: a, ...v })), ...vecinosB.map((v) => ({ de: b, ...v }))]);
+  // console.log(
+  //   `[puentes] "${a}": ${cuentaA}/${minimo}${cuentaA >= minimo ? " ✅" : " ❌"} | ` +
+  //     `"${b}": ${cuentaB}/${minimo}${cuentaB >= minimo ? " ✅" : " ❌"} → ${ok ? "✅" : "❌"}`
+  // );
+  // console.table([...vecinosA.map((v) => ({ de: a, ...v })), ...vecinosB.map((v) => ({ de: b, ...v }))]);
   return ok;
 }
 
 async function elegirObjetivos(rng = Math.random) {
-  for (let intento = 0; intento < 500; intento++) {
+  for (let intento = 0; intento < N_INTENTOS_ELECCION_OBJETIVOS; intento++) {
     const a = palabrasPool[(rng() * palabrasPool.length) | 0];
     const b = palabrasPool[(rng() * palabrasPool.length) | 0];
     if (a === b) continue;
     const s = await asegurarSim(a, b);
-    console.log(`[elegirObjetivos] intento ${intento}: "${a}"↔"${b}" sim=${s}%`);
+    // console.log(`[elegirObjetivos] intento ${intento}: "${a}"↔"${b}" sim=${s}%`);
     if (s < SIM_OBJETIVO_MIN || s > SIM_OBJETIVO_MAX) continue;
-    console.log(`[elegirObjetivos] intento ${intento}: sim en rango, revisando puentes…`);
+    // console.log(`[elegirObjetivos] intento ${intento}: sim en rango, revisando puentes…`);
     if (tieneSuficientesPuentes(a, b)) {
-      console.log(`[elegirObjetivos] ✅ elegido "${a}" ↔ "${b}" en el intento ${intento}`);
+      // console.log(`[elegirObjetivos] ✅ elegido "${a}" ↔ "${b}" en el intento ${intento}`);
       return [a, b];
     }
   }
-  console.log("[elegirObjetivos] ⚠️ se agotaron los 500 intentos, usando fallback fijo");
+  // console.log("[elegirObjetivos] ⚠️ se agotaron los N_INTENTOS_ELECCION_OBJETIVOS intentos, usando fallback fijo");
   return [palabrasPool[0], palabrasPool[palabrasPool.length - 1]];
 }
 
@@ -606,8 +619,8 @@ async function elegirObjetivos(rng = Math.random) {
 function actualizarVecinosObjetivos() {
   vecinosOrigen = contarVecinos(origen, PUENTES_MIN).vecinos.sort((x, y) => y.sim - x.sim);
   vecinosDestino = contarVecinos(destino, PUENTES_MIN).vecinos.sort((x, y) => y.sim - x.sim);
-  console.log(`[vecinos] "${origen}" (origen):`, vecinosOrigen);
-  console.log(`[vecinos] "${destino}" (destino):`, vecinosDestino);
+  // console.log(`[vecinos] "${origen}" (origen):`, vecinosOrigen);
+  // console.log(`[vecinos] "${destino}" (destino):`, vecinosDestino);
 }
 
 function calcularAristas() {
