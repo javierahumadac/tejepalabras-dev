@@ -1,11 +1,16 @@
 // Tejepalabras — juego en el navegador (sin backend).
 // Vocabulario y similitud: diccionario_es.vocab + embeddings.bin (word2vec SBWC).
 
-// Retocado para word2vec SBWC (pares aleatorios ~p95≈33%; sinónimos 60–80%).
-const UMBRAL_NORMAL = 34.5;
-const UMBRAL_DIFICIL = 39.5;
-const SIM_OBJETIVO_MIN = 5;
-const SIM_OBJETIVO_MAX = 9;
+// Retocado para word2vec SBWC + PCA 256d con "All-but-the-Top" (quita las
+// direcciones dominantes comunes a casi toda palabra antes de reducir
+// dimensiones; ver scripts/probar_all_but_top.py): pares aleatorios
+// ~p95≈14%, ~p99≈22%; sinónimos casi siempre 30–80%.
+const UMBRAL_NORMAL = 16.5;
+const UMBRAL_DIFICIL = 21.5;
+const SIM_OBJETIVO_MIN = 0;
+const SIM_OBJETIVO_MAX = 5;
+const PUENTES_MIN = 5;
+const UMBRAL_PUENTES = 50;
 
 const GRADO_MAX = 10; // los enlaces "se rompen" si un nodo acumula demasiados
 
@@ -13,6 +18,8 @@ let palabrasPool = [];     // palabras con vector para elegir objetivos al azar
 let extra = {};            // similitudes: extra[a][b] = %
 let origen = null;
 let destino = null;
+let vecinosOrigen = [];
+let vecinosDestino = [];
 let enTablero = new Set();
 let cy = null;
 let ganado = false;
@@ -23,24 +30,65 @@ let dificil = false;
 
 const CLAVE_DIFICULTAD = "tejepalabras-dificultad";
 
-function cargarDificultad() {
+function cargarBooleano(clave, porDefecto) {
   try {
-    dificil = localStorage.getItem(CLAVE_DIFICULTAD) === "1";
+    const guardado = localStorage.getItem(clave);
+    return guardado === null ? porDefecto : guardado === "1";
   } catch {
-    dificil = false;
+    return porDefecto;
   }
 }
 
-function guardarDificultad() {
+function guardarBooleano(clave, valor) {
   try {
-    localStorage.setItem(CLAVE_DIFICULTAD, dificil ? "1" : "0");
+    localStorage.setItem(clave, valor ? "1" : "0");
   } catch {
     // localStorage puede no estar disponible; no persistir no es grave.
   }
 }
 
+function cargarDificultad() {
+  dificil = cargarBooleano(CLAVE_DIFICULTAD, false);
+}
+
+function guardarDificultad() {
+  guardarBooleano(CLAVE_DIFICULTAD, dificil);
+}
+
 function umbralActual() {
   return dificil ? UMBRAL_DIFICIL : UMBRAL_NORMAL;
+}
+
+let raeVisible = true;
+let hintVisible = true;
+let ayudaVista = false;
+
+const CLAVE_RAE = "tejepalabras-rae";
+const CLAVE_HINT = "tejepalabras-hint";
+const CLAVE_AYUDA_VISTA = "tejepalabras-ayuda-vista";
+
+function cargarAyudaVista() {
+  ayudaVista = cargarBooleano(CLAVE_AYUDA_VISTA, false);
+}
+
+function guardarAyudaVista() {
+  guardarBooleano(CLAVE_AYUDA_VISTA, ayudaVista);
+}
+
+function cargarRae() {
+  raeVisible = cargarBooleano(CLAVE_RAE, true);
+}
+
+function guardarRae() {
+  guardarBooleano(CLAVE_RAE, raeVisible);
+}
+
+function cargarHint() {
+  hintVisible = cargarBooleano(CLAVE_HINT, true);
+}
+
+function guardarHint() {
+  guardarBooleano(CLAVE_HINT, hintVisible);
 }
 
 const MODO_DIARIO = "diario";
@@ -250,14 +298,32 @@ function similitudPct(a, b) {
 }
 
 function actualizarUmbralInfo() {
-  $("#umbral-info").textContent = `Enlace mínimo: ${umbralActual()}% de similitud.`;
+  const modo = dificil ? "difícil" : "normal";
+  $("#umbral-info").textContent = `Modo ${modo} (Enlace mínimo: ${umbralActual()}% de similitud).`;
   const switchDificultad = $("#switch-dificultad");
   if (switchDificultad) switchDificultad.checked = dificil;
+}
+
+function actualizarRaeInfo() {
+  const switchRae = $("#switch-rae");
+  if (switchRae) switchRae.checked = raeVisible;
+  $("#panel-rae")?.classList.toggle("oculto", !raeVisible);
+}
+
+function actualizarHintInfo() {
+  const switchHint = $("#switch-hint");
+  if (switchHint) switchHint.checked = hintVisible;
+  actualizarVisibilidadHint();
 }
 
 async function iniciar() {
   cargarDificultad();
   actualizarUmbralInfo();
+  cargarRae();
+  actualizarRaeInfo();
+  cargarHint();
+  actualizarHintInfo();
+  cargarAyudaVista();
   crearCytoscape();
   registrarEventos();
   bloquearEntrada(true);
@@ -438,6 +504,7 @@ async function nuevoJuego(diario = false, par = null) {
     const rng = diario ? rngDelDia() : Math.random;
     [origen, destino] = await elegirObjetivos(rng);
   }
+  actualizarVecinosObjetivos();
   enTablero = new Set([origen, destino]);
   $("#origen").textContent = origen;
   $("#destino").textContent = destino;
@@ -485,6 +552,36 @@ function actualizarMenuModos() {
     btn.classList.toggle("activo", btn.dataset.modo === modo);
   });
   actualizarUmbralInfo();
+  actualizarRaeInfo();
+  actualizarHintInfo();
+}
+
+
+function contarVecinos(palabra, minimo, umbral = UMBRAL_PUENTES) {
+  const emb = embedding(palabra);
+  let cuenta = 0;
+  const vecinos = [];
+  for (const w of palabrasPool) {
+    if (w === palabra) continue;
+    const sim = similitudPct(emb, cacheEmb.get(w));
+    if (sim <= umbral) continue;
+    cuenta++;
+    vecinos.push({ palabra: w, sim });
+    if (cuenta >= minimo) break;
+  }
+  return { cuenta, vecinos };
+}
+
+function tieneSuficientesPuentes(a, b, minimo = PUENTES_MIN) {
+  const { cuenta: cuentaA, vecinos: vecinosA } = contarVecinos(a, minimo);
+  const { cuenta: cuentaB, vecinos: vecinosB } = contarVecinos(b, minimo);
+  const ok = cuentaA >= minimo && cuentaB >= minimo;
+  console.log(
+    `[puentes] "${a}": ${cuentaA}/${minimo}${cuentaA >= minimo ? " ✅" : " ❌"} | ` +
+      `"${b}": ${cuentaB}/${minimo}${cuentaB >= minimo ? " ✅" : " ❌"} → ${ok ? "✅" : "❌"}`
+  );
+  console.table([...vecinosA.map((v) => ({ de: a, ...v })), ...vecinosB.map((v) => ({ de: b, ...v }))]);
+  return ok;
 }
 
 async function elegirObjetivos(rng = Math.random) {
@@ -493,9 +590,24 @@ async function elegirObjetivos(rng = Math.random) {
     const b = palabrasPool[(rng() * palabrasPool.length) | 0];
     if (a === b) continue;
     const s = await asegurarSim(a, b);
-    if (s >= SIM_OBJETIVO_MIN && s <= SIM_OBJETIVO_MAX) return [a, b];
+    console.log(`[elegirObjetivos] intento ${intento}: "${a}"↔"${b}" sim=${s}%`);
+    if (s < SIM_OBJETIVO_MIN || s > SIM_OBJETIVO_MAX) continue;
+    console.log(`[elegirObjetivos] intento ${intento}: sim en rango, revisando puentes…`);
+    if (tieneSuficientesPuentes(a, b)) {
+      console.log(`[elegirObjetivos] ✅ elegido "${a}" ↔ "${b}" en el intento ${intento}`);
+      return [a, b];
+    }
   }
+  console.log("[elegirObjetivos] ⚠️ se agotaron los 500 intentos, usando fallback fijo");
   return [palabrasPool[0], palabrasPool[palabrasPool.length - 1]];
+}
+
+/** Recalcula vecinosOrigen/vecinosDestino para el par origen/destino vigente. */
+function actualizarVecinosObjetivos() {
+  vecinosOrigen = contarVecinos(origen, PUENTES_MIN).vecinos.sort((x, y) => y.sim - x.sim);
+  vecinosDestino = contarVecinos(destino, PUENTES_MIN).vecinos.sort((x, y) => y.sim - x.sim);
+  console.log(`[vecinos] "${origen}" (origen):`, vecinosOrigen);
+  console.log(`[vecinos] "${destino}" (destino):`, vecinosDestino);
 }
 
 function calcularAristas() {
@@ -812,19 +924,11 @@ async function colocar(p) {
   if (!restaurando) mensaje("");
 }
 
-async function mostrarPanel(palabra) {
-  mensaje("calculando…");
-  for (const n of enTablero) {
-    if (n !== palabra) await asegurarSim(palabra, n);
-  }
-  mensaje("");
+const PISTAS_CANT = 5;
+let panelPalabraActual = null;
+let panelMostrandoPistas = false;
 
-  $("#panel").classList.remove("oculto");
-  $("#panel-titulo").textContent = palabra;
-  const rae = $("#panel-rae");
-  rae.href = `https://dle.rae.es/${encodeURIComponent(palabra)}`;
-  rae.title = `Ver “${palabra}” en la RAE`;
-  rae.setAttribute("aria-label", `Ver definición de “${palabra}” en la RAE`);
+function renderizarListaTablero(palabra) {
   const otras = [...enTablero]
     .filter((n) => n !== palabra)
     .map((n) => ({ n, s: sim(n, palabra) }))
@@ -835,6 +939,59 @@ async function mostrarPanel(palabra) {
         `<li class="${o.s > umbralActual() ? "conecta" : ""}"><span>${o.n}</span><span>${o.s}%</span></li>`
     )
     .join("");
+}
+
+function renderizarListaPistas(palabra) {
+  const vecinos = palabra === origen ? vecinosOrigen : vecinosDestino;
+  $("#panel-lista").innerHTML = vecinos
+    .slice(0, PISTAS_CANT)
+    .map(
+      (v) =>
+        `<li class="${v.sim > umbralActual() ? "conecta" : ""}"><span>${v.palabra}</span><span>${v.sim}%</span></li>`
+    )
+    .join("");
+}
+
+function renderizarPanelLista() {
+  if (!panelPalabraActual) return;
+  if (panelMostrandoPistas) renderizarListaPistas(panelPalabraActual);
+  else renderizarListaTablero(panelPalabraActual);
+}
+
+async function mostrarPanel(palabra) {
+  mensaje("calculando…");
+  for (const n of enTablero) {
+    if (n !== palabra) await asegurarSim(palabra, n);
+  }
+  mensaje("");
+
+  panelPalabraActual = palabra;
+  panelMostrandoPistas = false;
+
+  $("#panel").classList.remove("oculto");
+  $("#panel-titulo").textContent = palabra;
+  const rae = $("#panel-rae");
+  rae.href = `https://dle.rae.es/${encodeURIComponent(palabra)}`;
+  rae.title = `Ver “${palabra}” en la RAE`;
+  rae.setAttribute("aria-label", `Ver definición de “${palabra}” en la RAE`);
+
+  actualizarVisibilidadHint();
+  renderizarPanelLista();
+}
+
+/** Muestra/oculta el botón de pista según el switch de ajustes y si la palabra abierta es origen/destino. */
+function actualizarVisibilidadHint() {
+  const hint = $("#panel-hint");
+  if (!hint) return;
+  const esObjetivo = panelPalabraActual === origen || panelPalabraActual === destino;
+  const visible = hintVisible && esObjetivo;
+  hint.classList.toggle("oculto", !visible);
+  if (!visible && panelMostrandoPistas) {
+    panelMostrandoPistas = false;
+    renderizarPanelLista();
+  }
+  hint.classList.toggle("activo", visible && panelMostrandoPistas);
+  hint.setAttribute("aria-pressed", String(visible && panelMostrandoPistas));
 }
 
 function mensajeSugerencia(palabra, sugerencias) {
@@ -875,7 +1032,7 @@ function leerParamsPractica() {
   return [o, d];
 }
 
-function actualizarUrl() {
+function construirUrlJuego() {
   const u = new URL(location.href);
   u.hash = "";
   if (modo === MODO_PRACTICA && origen && destino) {
@@ -884,19 +1041,17 @@ function actualizarUrl() {
   } else {
     u.search = "";
   }
+  return u;
+}
+
+function actualizarUrl() {
+  const u = construirUrlJuego();
   const destinoUrl = `${u.pathname}${u.search}`;
   history.replaceState(null, "", destinoUrl || "/");
 }
 
 function urlJuego() {
-  const u = new URL(location.href);
-  u.hash = "";
-  if (modo === MODO_PRACTICA && origen && destino) {
-    u.searchParams.set("origen", origen);
-    u.searchParams.set("destino", destino);
-  } else {
-    u.search = "";
-  }
+  const u = construirUrlJuego();
   return u.href.replace(/\/$/, "") || u.origin;
 }
 
@@ -1073,6 +1228,18 @@ function registrarMenuModos() {
       ejecutarLayout();
     }
   });
+
+  $("#switch-rae").addEventListener("change", (e) => {
+    raeVisible = e.target.checked;
+    guardarRae();
+    actualizarRaeInfo();
+  });
+
+  $("#switch-hint").addEventListener("change", (e) => {
+    hintVisible = e.target.checked;
+    guardarHint();
+    actualizarHintInfo();
+  });
 }
 
 function registrarEventos() {
@@ -1093,6 +1260,11 @@ function registrarEventos() {
   $("#panel-cerrar").addEventListener("click", () =>
     $("#panel").classList.add("oculto")
   );
+  $("#panel-hint").addEventListener("click", () => {
+    panelMostrandoPistas = !panelMostrandoPistas;
+    actualizarVisibilidadHint();
+    renderizarPanelLista();
+  });
 
   const ayuda = $("#ayuda");
   const menuModos = $("#menu-modos");
@@ -1104,6 +1276,12 @@ function registrarEventos() {
   $("#btn-ayuda").addEventListener("click", abrirAyuda);
   $("#ayuda-cerrar").addEventListener("click", cerrarAyuda);
   ayuda.querySelector("[data-cerrar-ayuda]").addEventListener("click", cerrarAyuda);
+
+  if (!ayudaVista) {
+    ayudaVista = true;
+    guardarAyudaVista();
+    abrirAyuda();
+  }
 
   $("#modal-final-cerrar").addEventListener("click", cerrarModalFinal);
   modalFinal.querySelector("[data-cerrar-final]").addEventListener("click", cerrarModalFinal);
