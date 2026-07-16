@@ -110,12 +110,83 @@ header {
   color: #eee;
 }
 .menu-modo-opcion.activo .bi { color: #3dd68c; }
-.modal-umbral {
-  margin: 0;
+.modal-umbral-fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding-top: 12px;
   border-top: 1px solid #2a2a2a;
+}
+.modal-umbral {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
   font-size: 12px;
   color: #777;
+}
+#umbral-info {
+  margin-bottom: 0px;
+}
+
+.switch-dificultad {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  cursor: pointer;
+  user-select: none;
+}
+.switch-dificultad-etiqueta {
+  font-size: 11px;
+  color: #666;
+  transition: color 0.15s ease;
+}
+.switch-dificultad-normal { color: #888; }
+.switch-dificultad:has(#switch-dificultad:checked) .switch-dificultad-normal { color: #555; }
+.switch-dificultad:has(#switch-dificultad:checked) .switch-dificultad-dificil { color: #e2586b; }
+.switch-dificultad-pista {
+  position: relative;
+  display: block;
+  width: 36px;
+  height: 20px;
+  line-height: 0;
+  border-radius: 999px;
+  background: #888;
+  transition: background-color 0.15s ease;
+  flex-shrink: 0;
+  align-self: center;
+}
+.switch-dificultad-pista input {
+  appearance: none;
+  -webkit-appearance: none;
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.switch-dificultad-boton {
+  position: absolute;
+  top: 50%;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  margin-top: -8px;
+  border-radius: 50%;
+  background: #eee;
+  transition: transform 0.15s ease;
+}
+.switch-dificultad-pista:has(input:checked) {
+  background: #e2586b;
+}
+.switch-dificultad-pista:has(input:checked) .switch-dificultad-boton {
+  transform: translateX(16px);
+}
+.switch-dificultad-pista:has(input:focus-visible) {
+  outline: 2px solid #666;
+  outline-offset: 2px;
 }
 
 #grafo {
@@ -153,7 +224,7 @@ footer {
 #btn-compartir {
   flex-shrink: 0;
   padding: 4px;
-  color: #8a1c36;
+  color: #e2586b;
 }
 #btn-compartir .bi { font-size: 1.15rem; }
 #btn-compartir:not(:disabled):hover { color: #a82845; }

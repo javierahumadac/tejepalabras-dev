@@ -2,9 +2,10 @@
 // Vocabulario y similitud: diccionario_es.vocab + embeddings.bin (word2vec SBWC).
 
 // Retocado para word2vec SBWC (pares aleatorios ~p95≈33%; sinónimos 60–80%).
-const UMBRAL = 35.5;
-const SIM_OBJETIVO_MIN = 10;
-const SIM_OBJETIVO_MAX = 20;
+const UMBRAL_NORMAL = 34.5;
+const UMBRAL_DIFICIL = 39.5;
+const SIM_OBJETIVO_MIN = 5;
+const SIM_OBJETIVO_MAX = 9;
 
 const GRADO_MAX = 10; // los enlaces "se rompen" si un nodo acumula demasiados
 
@@ -18,6 +19,29 @@ let ganado = false;
 let ultimoPuntaje = null;
 let listo = false;
 let restaurando = false;
+let dificil = false;
+
+const CLAVE_DIFICULTAD = "tejepalabras-dificultad";
+
+function cargarDificultad() {
+  try {
+    dificil = localStorage.getItem(CLAVE_DIFICULTAD) === "1";
+  } catch {
+    dificil = false;
+  }
+}
+
+function guardarDificultad() {
+  try {
+    localStorage.setItem(CLAVE_DIFICULTAD, dificil ? "1" : "0");
+  } catch {
+    // localStorage puede no estar disponible; no persistir no es grave.
+  }
+}
+
+function umbralActual() {
+  return dificil ? UMBRAL_DIFICIL : UMBRAL_NORMAL;
+}
 
 const MODO_DIARIO = "diario";
 const MODO_PRACTICA = "practica";
@@ -226,10 +250,13 @@ function similitudPct(a, b) {
 }
 
 function actualizarUmbralInfo() {
-  $("#umbral-info").textContent = `Enlace mínimo: ${UMBRAL}% de similitud.`;
+  $("#umbral-info").textContent = `Enlace mínimo: ${umbralActual()}% de similitud.`;
+  const switchDificultad = $("#switch-dificultad");
+  if (switchDificultad) switchDificultad.checked = dificil;
 }
 
 async function iniciar() {
+  cargarDificultad();
   actualizarUmbralInfo();
   crearCytoscape();
   registrarEventos();
@@ -477,7 +504,7 @@ function calcularAristas() {
   for (let i = 0; i < nodos.length; i++) {
     for (let j = i + 1; j < nodos.length; j++) {
       const s = sim(nodos[i], nodos[j]);
-      if (s > UMBRAL) candidatas.push({ a: nodos[i], b: nodos[j], s });
+      if (s > umbralActual()) candidatas.push({ a: nodos[i], b: nodos[j], s });
     }
   }
   candidatas.sort((x, y) => y.s - x.s);
@@ -505,7 +532,7 @@ async function reconstruir() {
         id: `${c.a}__${c.b}`,
         source: c.a,
         target: c.b,
-        peso: 1 + (c.s - UMBRAL) / 12,
+        peso: 1 + (c.s - umbralActual()) / 12,
         etiqueta: `${c.s}%`,
       },
     });
@@ -805,7 +832,7 @@ async function mostrarPanel(palabra) {
   $("#panel-lista").innerHTML = otras
     .map(
       (o) =>
-        `<li class="${o.s > UMBRAL ? "conecta" : ""}"><span>${o.n}</span><span>${o.s}%</span></li>`
+        `<li class="${o.s > umbralActual() ? "conecta" : ""}"><span>${o.n}</span><span>${o.s}%</span></li>`
     )
     .join("");
 }
@@ -1035,6 +1062,16 @@ function registrarMenuModos() {
         await nuevoJuego(true);
       }
     });
+  });
+
+  $("#switch-dificultad").addEventListener("change", async (e) => {
+    dificil = e.target.checked;
+    guardarDificultad();
+    actualizarUmbralInfo();
+    if (listo && enTablero.size) {
+      await reconstruir();
+      ejecutarLayout();
+    }
   });
 }
 
