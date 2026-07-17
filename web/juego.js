@@ -139,6 +139,7 @@ function guardarHint() {
 
 const MODO_DIARIO = "diario";
 const MODO_PRACTICA = "practica";
+const MODO_LIBRE = "libre";
 let modo = MODO_DIARIO;
 
 // Guardamos el progreso del reto diario en localStorage
@@ -558,6 +559,19 @@ function crearCytoscape() {
   });
 }
 
+function placeholderPuente() {
+  const entrada = $("#entrada");
+  if (entrada) entrada.placeholder = "palabra puente…";
+}
+
+function placeholderLibre() {
+  const entrada = $("#entrada");
+  if (!entrada) return;
+  if (!origen) entrada.placeholder = "palabra origen…";
+  else if (!destino) entrada.placeholder = "palabra destino…";
+  else entrada.placeholder = "palabra puente…";
+}
+
 async function nuevoJuego(diario = false, par = null) {
   if (!listo) return;
   ganado = false;
@@ -567,6 +581,7 @@ async function nuevoJuego(diario = false, par = null) {
   $("#panel").classList.add("oculto");
   $("#modal-final").classList.add("oculto");
   bloquearEntrada(false);
+  placeholderPuente();
   mensaje("preparando partida…");
 
   let estadoGuardado = null;
@@ -595,6 +610,58 @@ async function nuevoJuego(diario = false, par = null) {
   if (!ganado) mensaje("");
   $("#entrada").focus();
   guardarEstadoDiario();
+}
+
+async function nuevoJuegoLibre() {
+  if (!listo) return;
+  ganado = false;
+  ultimoPuntaje = null;
+  extra = {};
+  origen = null;
+  destino = null;
+  vecinosOrigen = [];
+  vecinosDestino = [];
+  enTablero = new Set();
+  modo = MODO_LIBRE;
+  $("#panel").classList.add("oculto");
+  $("#modal-final").classList.add("oculto");
+  bloquearEntrada(false);
+  $("#origen").textContent = "–";
+  $("#destino").textContent = "–";
+  const flecha = $("#estado-flecha");
+  flecha.classList.remove("ok");
+  flecha.firstElementChild.className = "bi bi-three-dots";
+  cy.elements().remove();
+  placeholderLibre();
+  mensaje("elige la palabra origen");
+  actualizarMenuModos();
+  actualizarUrl();
+  $("#entrada").focus();
+}
+
+async function definirPalabraLibre(p) {
+  if (!origen) {
+    origen = p;
+    enTablero.add(p);
+    cy.add({ data: { id: p }, classes: "objetivo" });
+    $("#origen").textContent = origen;
+    placeholderLibre();
+    mensaje("elige la palabra destino");
+    $("#entrada").focus();
+    return;
+  }
+
+  destino = p;
+  enTablero.add(p);
+  cy.add({ data: { id: p }, classes: "objetivo" });
+  $("#destino").textContent = destino;
+  await asegurarSim(origen, destino);
+  actualizarVecinosObjetivos();
+  await reconstruir();
+  ejecutarLayout();
+  placeholderLibre();
+  if (!ganado) mensaje("");
+  $("#entrada").focus();
 }
 
 /** Deja solo origen y destino; quita el resto de palabras del tablero. */
@@ -990,6 +1057,11 @@ async function anadirPalabra(cruda) {
     return mensajeSugerencia(p, sugerencias(p));
   }
 
+  if (modo === MODO_LIBRE && (!origen || !destino)) {
+    await definirPalabraLibre(p);
+    return;
+  }
+
   try {
     const embP = embedding(p);
     for (const w of enTablero) {
@@ -1365,6 +1437,8 @@ function registrarMenuModos() {
       cerrar();
       if (elegido === MODO_PRACTICA) {
         await nuevoJuego(false);
+      } else if (elegido === MODO_LIBRE) {
+        if (modo !== MODO_LIBRE) await nuevoJuegoLibre();
       } else if (elegido !== modo) {
         await nuevoJuego(true);
       }

@@ -125,10 +125,10 @@
             <p class="modal-privacidad">Uso analítica anónima con <a href="https://www.goatcounter.com/" target="_blank" rel="noopener noreferrer">GoatCounter</a> para contar visitas y registrar palabras rechazadas. No cookies.</p>
           </div>
           <div class="ayuda-seccion oculto" data-ayuda-seccion="modos">
-            <p>Existen actualmente dos modos de juego seleccionado en el ajustes <i class="bi bi-gear" aria-hidden="true"></i>:</p>
+            <p>Existen actualmente tres modos de juego seleccionables en ajustes <i class="bi bi-gear" aria-hidden="true"></i>:</p>
             <p>El <em>reto del día</em>: las mismas dos palabras para todo el mundo! Van cambiando cada día.</p>
             <p>El <em>modo práctica</em> genera pares aleatorios.</p>
-            <p></p>
+            <p>El <em>modo libre</em> te deja elegir tú la palabra origen y la destino (la primera y la segunda que envíes).</p>
             <p>El <em>modo difícil</em> sube el umbral mínimo de similitud para que dos palabras se enlazen.</p>
           </div>
           <div class="ayuda-seccion oculto" data-ayuda-seccion="apoyar">
@@ -175,6 +175,10 @@
           <button type="button" class="menu-modo-opcion" data-modo="practica">
             <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
             <span>Modo práctica (Nuevo par aleatorio)</span>
+          </button>
+          <button type="button" class="menu-modo-opcion" data-modo="libre">
+            <i class="bi bi-magic" aria-hidden="true"></i>
+            <span>Modo libre (elige tú origen y destino)</span>
           </button>
         </div>
         <div class="modal-umbral-fila">
@@ -287,6 +291,6 @@
   <script data-goatcounter="%%GOATCOUNTER_ENDPOINT%%"
           async src="//gc.zgo.at/count.js"></script>
   <!-- GOATCOUNTER_END -->
-  <script type="module" src="juego.js?v=24"></script>
+  <script type="module" src="juego.js?v=25"></script>
 </body>
 </html>
