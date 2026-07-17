@@ -836,6 +836,13 @@ function actualizarMenuModos() {
   document.querySelectorAll(".menu-modo-opcion").forEach((btn) => {
     btn.classList.toggle("activo", btn.dataset.modo === modo);
   });
+  const racha = calcularRacha(cargarHistoricoDiario());
+  const rachaWrap = $("#menu-racha-diaria");
+  const rachaValorEl = $("#menu-racha-diaria-valor");
+  if (rachaWrap && rachaValorEl) {
+    rachaWrap.classList.toggle("oculto", racha <= 0);
+    rachaValorEl.textContent = racha;
+  }
   actualizarUmbralInfo();
   actualizarRaeInfo();
   actualizarHintInfo();

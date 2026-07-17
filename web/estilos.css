@@ -35,7 +35,7 @@
   --exito: #3b9d81;
   --acento: #e2586b;
   --acento-oscuro: #e2586b;
-  
+
   --overlay: rgba(0, 0, 0, 0.4);
 }
 
@@ -176,6 +176,19 @@ header {
   color: var(--texto);
 }
 .menu-modo-opcion.activo .bi { color: var(--exito); }
+.menu-modo-opcion > span:first-of-type { flex: 1; }
+.menu-modo-racha {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--acento);
+  flex-shrink: 0;
+}
+.menu-modo-racha .bi { color: var(--acento); font-size: 1rem; }
+.menu-modo-opcion.activo .menu-modo-racha .bi { color: var(--acento); }
 .modal-umbral-fila {
   display: flex;
   align-items: center;
