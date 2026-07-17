@@ -782,6 +782,7 @@ async function definirPalabraLibre(p) {
   actualizarVecinosObjetivos();
   await reconstruir();
   ejecutarLayout();
+  actualizarUrl();
   placeholderLibre();
   if (!ganado) mensaje("");
   $("#entrada").focus();
@@ -1452,7 +1453,7 @@ function leerParamsPractica() {
 function construirUrlJuego() {
   const u = new URL(location.href);
   u.hash = "";
-  if (modo === MODO_PRACTICA && origen && destino) {
+  if ((modo === MODO_PRACTICA || modo === MODO_LIBRE) && origen && destino) {
     u.searchParams.set("origen", origen);
     u.searchParams.set("destino", destino);
   } else {
@@ -1563,6 +1564,34 @@ async function ajustarAspecto43(blob) {
   }
 }
 
+async function superponerSorpresa(blob) {
+  const [captura, sorpresa] = await Promise.all([
+    createImageBitmap(blob),
+    fetch("assets/surprised.png")
+      .then((respuesta) => {
+        if (!respuesta.ok) throw new Error("no se pudo cargar surprised.png");
+        return respuesta.blob();
+      })
+      .then((imagen) => createImageBitmap(imagen)),
+  ]);
+
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = captura.width;
+    canvas.height = captura.height;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(captura, 0, 0);
+    ctx.drawImage(sorpresa, 0, 0, canvas.width, canvas.height);
+
+    return await new Promise((resolve, reject) => {
+      canvas.toBlob((out) => (out ? resolve(out) : reject(new Error("toBlob falló"))), "image/png");
+    });
+  } finally {
+    captura.close();
+    sorpresa.close();
+  }
+}
+
 async function capturarGrafo() {
   $("#panel").classList.add("oculto");
 
@@ -1580,8 +1609,8 @@ async function capturarGrafo() {
     cy.nodes().difference(nodoOrigen.union(nodoDestino)).addClass("captura-oculto");
     cy.edges().addClass("captura-oculto");
 
-    const separacionHorizontal = 130;
-    const separacionVertical = 40;
+    const separacionHorizontal = 110;
+    const separacionVertical = 55;
     nodoOrigen.position({ x: -separacionHorizontal, y: -separacionVertical });
     nodoDestino.position({ x: separacionHorizontal, y: separacionVertical });
 
@@ -1620,7 +1649,8 @@ async function capturarGrafo() {
       full: true,
       scale: 2,
     });
-    return await ajustarAspecto43(blob);
+    const captura43 = await ajustarAspecto43(blob);
+    return ganado ? captura43 : await superponerSorpresa(captura43);
   } finally {
     if (elementosInterrogante) elementosInterrogante.remove();
     cy.nodes().removeClass("captura captura-oculto");
