@@ -666,6 +666,36 @@ body.entrada-activa footer {
 .multiplicador-gris { color: var(--texto-apagado); }
 .multiplicador-rojo { color: var(--acento); }
 
+.estadistica-diaria {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--borde);
+}
+.racha-diaria {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--texto-secundario);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.racha-diaria .bi {
+  color: var(--acento);
+}
+.racha-diaria strong {
+  color: var(--texto);
+}
+.grafico-historico-leyenda {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--texto-debil);
+}
+#grafico-historico {
+  width: 100%;
+  height: 120px;
+  display: block;
+}
+
 .btn-compartir-final {
   display: flex;
   align-items: center;

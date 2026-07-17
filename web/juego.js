@@ -50,6 +50,7 @@ function coloresTema() {
     textoSecundario: colorCss("--texto-secundario"),
     textoDebil: colorCss("--texto-debil"),
     exito: colorCss("--exito"),
+    acento: colorCss("--acento"),
     acentoOscuro: colorCss("--acento-oscuro"),
   };
 }
@@ -144,6 +145,8 @@ let modo = MODO_DIARIO;
 
 // Guardamos el progreso del reto diario en localStorage
 const CLAVE_DIARIO = "tejepalabras-diario-estado";
+const CLAVE_HISTORICO_DIARIO = "tejepalabras-historico-diario";
+const HISTORICO_MAX = 90;
 
 // PRNG determinístico (mulberry32) sembrado con la fecha de hoy
 function seedDesdeTexto(str) {
@@ -179,6 +182,23 @@ function fechaHoyCorta() {
   return `${d}/${m}/${y}`;
 }
 
+function fechaAStr(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dia = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dia}`;
+}
+
+function parseFechaStr(str) {
+  const [y, m, d] = str.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function fechaCortaDesdeStr(str) {
+  const [y, m, d] = str.split("-");
+  return `${d}/${m}`;
+}
+
 function rngDelDia() {
   return mulberry32(seedDesdeTexto(fechaHoyStr()));
 }
@@ -211,6 +231,78 @@ function guardarEstadoDiario() {
   } catch {
     // localStorage puede no estar disponible.
   }
+}
+
+function cargarHistoricoDiario() {
+  try {
+    const bruto = localStorage.getItem(CLAVE_HISTORICO_DIARIO);
+    if (!bruto) return {};
+    const datos = JSON.parse(bruto);
+    if (!datos || typeof datos !== "object" || Array.isArray(datos)) return {};
+    const limpio = {};
+    for (const [fecha, puntaje] of Object.entries(datos)) {
+      if (typeof fecha === "string" && /^\d{4}-\d{2}-\d{2}$/.test(fecha) && Number.isFinite(puntaje)) {
+        limpio[fecha] = Number(puntaje);
+      }
+    }
+    return limpio;
+  } catch {
+    return {};
+  }
+}
+
+function guardarPuntajeDiario(fecha, puntaje) {
+  try {
+    const historico = cargarHistoricoDiario();
+    historico[fecha] = puntaje;
+    const fechas = Object.keys(historico).sort();
+    if (fechas.length > HISTORICO_MAX) {
+      for (const f of fechas.slice(0, fechas.length - HISTORICO_MAX)) {
+        delete historico[f];
+      }
+    }
+    localStorage.setItem(CLAVE_HISTORICO_DIARIO, JSON.stringify(historico));
+  } catch {
+    // localStorage puede no estar disponible.
+  }
+}
+
+/** Racha de días diarios ganados consecutivos, contando hacia atrás desde hoy. */
+function calcularRacha(historico, hoy = fechaHoyStr()) {
+  if (historico[hoy] == null) {
+    const ayer = parseFechaStr(hoy);
+    ayer.setDate(ayer.getDate() - 1);
+    hoy = fechaAStr(ayer);
+    if (historico[hoy] == null) return 0;
+  }
+  let racha = 0;
+  let cursor = parseFechaStr(hoy);
+  while (historico[fechaAStr(cursor)] != null) {
+    racha++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return racha;
+}
+
+/** Últimas `cantidad` fechas del calendario hasta hoy, rellenando días sin jugar con 0. */
+function entradasHistoricoOrdenadas(historico, cantidad = 14) {
+  const fechas = Object.keys(historico).sort();
+  if (!fechas.length) return [];
+
+  const hoy = fechaHoyStr();
+  const fin = parseFechaStr(hoy);
+  const inicioVentana = parseFechaStr(hoy);
+  inicioVentana.setDate(inicioVentana.getDate() - (cantidad - 1));
+  const primera = parseFechaStr(fechas[0]);
+  const inicio = primera > inicioVentana ? new Date(primera) : inicioVentana;
+
+  const out = [];
+  for (let d = new Date(inicio); d <= fin; d.setDate(d.getDate() + 1)) {
+    const f = fechaAStr(d);
+    const jugado = historico[f] != null;
+    out.push({ fecha: f, puntaje: jugado ? historico[f] : -1, jugado });
+  }
+  return out;
 }
 
 /** @type {Map<string, Float32Array>} */
@@ -1025,7 +1117,137 @@ function mostrarResultado({ verdes, grises, sueltos, puntaje }) {
   $("#puntaje-grises-total").textContent = grises * PUNTOS_GRIS;
   $("#puntaje-sueltos-cant").textContent = sueltos;
   $("#puntaje-sueltos-total").textContent = sueltos * PUNTOS_ROJO;
+  if (modo !== MODO_DIARIO) $("#estadistica-diaria")?.classList.add("oculto");
   if (!restaurando) $("#modal-final").classList.remove("oculto");
+}
+
+function dibujarGraficoHistorico(entradas) {
+  const canvas = $("#grafico-historico");
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = canvas.clientWidth || 360;
+  const cssH = canvas.clientHeight || 120;
+  canvas.width = Math.round(cssW * dpr);
+  canvas.height = Math.round(cssH * dpr);
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cssW, cssH);
+
+  const c = coloresTema();
+  const padL = 28;
+  const padR = 8;
+  const padT = 14;
+  const padB = 22;
+  const w = cssW - padL - padR;
+  const h = cssH - padT - padB;
+
+  if (!entradas.length) {
+    ctx.fillStyle = c.textoDebil;
+    ctx.font = "12px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("Sin datos aún", cssW / 2, cssH / 2);
+    return;
+  }
+
+  const puntajesJugados = entradas.filter((e) => e.jugado).map((e) => e.puntaje);
+  const maxY = Math.max(...puntajesJugados, 1);
+  const hoy = fechaHoyStr();
+  const n = entradas.length;
+  const gap = Math.max(2, (w / n) * 0.2);
+  const barW = Math.max(2, (w - gap * (n - 1)) / n);
+  const altoFalta = 4;
+  const baseline = padT + h - altoFalta;
+
+  // Mayor puntaje arriba (eje Y estándar); días sin jugar = -1 debajo del 0
+  const yDe = (p) => padT + (1 - p / maxY) * (h - altoFalta);
+  const xBarra = (i) => padL + i * (barW + gap);
+  const xCentro = (i) => xBarra(i) + barW / 2;
+
+  ctx.strokeStyle = c.borde;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(padL, padT);
+  ctx.lineTo(padL, baseline);
+  ctx.lineTo(padL + w, baseline);
+  ctx.stroke();
+
+  ctx.fillStyle = c.textoDebil;
+  ctx.font = "10px system-ui, sans-serif";
+  ctx.textAlign = "right";
+  ctx.fillText(String(maxY), padL - 4, padT + 3);
+  ctx.fillText("0", padL - 4, baseline + 3);
+
+  entradas.forEach((e, i) => {
+    const x = xBarra(i);
+    if (!e.jugado || e.puntaje < 0) {
+      ctx.save();
+      ctx.strokeStyle = c.acento;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 0.5, baseline + 0.5, barW - 1, altoFalta - 1);
+      ctx.beginPath();
+      ctx.rect(x, baseline, barW, altoFalta);
+      ctx.clip();
+      ctx.beginPath();
+      for (let raya = -altoFalta; raya < barW; raya += 6) {
+        ctx.moveTo(x + raya, baseline + altoFalta);
+        ctx.lineTo(x + raya + altoFalta, baseline);
+      }
+      ctx.stroke();
+      ctx.restore();
+      return;
+    }
+    const y = yDe(e.puntaje);
+    const barH = Math.max(1, baseline - y);
+    ctx.fillStyle = e.fecha === hoy ? c.exito : c.bordeFuerte;
+    ctx.fillRect(x, y, barW, barH);
+  });
+
+  ctx.fillStyle = c.textoDebil;
+  ctx.font = "10px system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(fechaCortaDesdeStr(entradas[0].fecha), xCentro(0), cssH - 4);
+  if (n > 2) {
+    const mid = (n / 2) | 0;
+    ctx.fillText(fechaCortaDesdeStr(entradas[mid].fecha), xCentro(mid), cssH - 4);
+  }
+  ctx.fillText(fechaCortaDesdeStr(entradas[n - 1].fecha), xCentro(n - 1), cssH - 4);
+}
+
+function renderizarEstadisticaDiaria() {
+  if (modo !== MODO_DIARIO) {
+    $("#estadistica-diaria")?.classList.add("oculto");
+    return;
+  }
+  const historico = cargarHistoricoDiario();
+  if (historico[fechaHoyStr()] == null) {
+    $("#estadistica-diaria")?.classList.add("oculto");
+    return;
+  }
+  const racha = calcularRacha(historico);
+  const rachaEl = $("#racha-diaria-valor");
+  if (rachaEl) rachaEl.textContent = racha;
+  const unidadEl = $("#racha-diaria-unidad");
+  if (unidadEl) unidadEl.textContent = racha === 1 ? "día" : "días";
+  const seccion = $("#estadistica-diaria");
+  if (seccion) seccion.classList.remove("oculto");
+
+  const entradas = entradasHistoricoOrdenadas(historico);
+  const bloqueHistorico = $("#historico-diario");
+  if (entradas.length < 2) {
+    bloqueHistorico?.classList.add("oculto");
+    return;
+  }
+  bloqueHistorico?.classList.remove("oculto");
+  // Esperar un frame para que el canvas tenga ancho CSS al dejar de estar oculto.
+  requestAnimationFrame(() => {
+    dibujarGraficoHistorico(entradas);
+  });
+}
+
+function actualizarEstadisticaDiaria(puntaje) {
+  guardarPuntajeDiario(fechaHoyStr(), puntaje);
+  if (restaurando) return;
+  renderizarEstadisticaDiaria();
 }
 
 function ganar(aristas) {
@@ -1036,6 +1258,7 @@ function ganar(aristas) {
   mensaje(`puntaje: ${resultado.puntaje}`, `${colorPuntaje(resultado)} clicable`);
   bloquearEntrada(true);
   mostrarResultado(resultado);
+  if (modo === MODO_DIARIO) actualizarEstadisticaDiaria(resultado.puntaje);
 }
 
 function esDispositivoTactil() {
@@ -1505,7 +1728,9 @@ function registrarEventos() {
   registrarMenuModos();
   $("#btn-compartir").addEventListener("click", () => void compartir());
   $("#mensaje").addEventListener("click", () => {
-    if (ganado) $("#modal-final").classList.remove("oculto");
+    if (!ganado) return;
+    renderizarEstadisticaDiaria();
+    $("#modal-final").classList.remove("oculto");
   });
   $("#panel-cerrar").addEventListener("click", () =>
     $("#panel").classList.add("oculto")

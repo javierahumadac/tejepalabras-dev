@@ -6,10 +6,17 @@ Inspirado en [Linxicon](https://linxicon.com/) (Trainwreck Labs). Proyecto indep
 
 ## Cómo se juega
 
-1. El juego elige dos palabras objetivo (origen y destino).
+1. Se definen dos palabras objetivo (origen y destino), según el modo de juego.
 2. Escribes palabras en español que actúen de puente entre ellas.
 3. Si dos palabras del tablero son semánticamente parecidas (similitud > umbral), se dibuja un enlace.
 4. Ganas cuando origen y destino quedan conectados en el grafo.
+
+## Modos de juego
+
+- **Reto del día:** propone las mismas palabras de origen y destino para todo el mundo y las cambia cada día.
+- **Modo práctica:** genera un nuevo par aleatorio de palabras objetivo en cada partida.
+- **Modo libre:** la primera palabra que introduces se convierte en el origen y la segunda en el destino.
+- **Modo difícil:** aumenta el umbral mínimo de similitud necesario para enlazar dos palabras. Puede combinarse con cualquiera de los modos anteriores.
 
 ## Tecnología
 

@@ -260,6 +260,16 @@
             </span>
           </li>
         </ul>
+        <div id="estadistica-diaria" class="estadistica-diaria oculto">
+          <p class="racha-diaria">
+            <i class="bi bi-fire" aria-hidden="true"></i>
+            Racha actual: <strong id="racha-diaria-valor">0</strong> <span id="racha-diaria-unidad">días</span>
+          </p>
+          <div id="historico-diario" class="historico-diario oculto">
+            <p class="grafico-historico-leyenda">Histórico</p>
+            <canvas id="grafico-historico" width="360" height="120" aria-label="Histórico de puntajes diarios"></canvas>
+          </div>
+        </div>
       </div>
       <div class="modal-pie">
         <button type="button" id="modal-final-compartir" class="btn-compartir-final">
@@ -291,6 +301,6 @@
   <script data-goatcounter="%%GOATCOUNTER_ENDPOINT%%"
           async src="//gc.zgo.at/count.js"></script>
   <!-- GOATCOUNTER_END -->
-  <script type="module" src="juego.js?v=25"></script>
+  <script type="module" src="juego.js?v=32"></script>
 </body>
 </html>
