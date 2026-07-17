@@ -629,6 +629,37 @@ function estiloGrafo() {
       selector: "edge.captura",
       style: { label: "", "text-opacity": 0 },
     },
+    {
+      selector: "node.captura-oculto",
+      style: { display: "none" },
+    },
+    {
+      selector: "edge.captura-oculto",
+      style: { display: "none" },
+    },
+    {
+      selector: "edge.captura-interrogante",
+      style: {
+        "line-style": "dashed",
+        "line-color": c.borde,
+        width: 2,
+        label: "",
+        "target-arrow-shape": "none",
+        "source-arrow-shape": "none",
+        "curve-style": "straight",
+      },
+    },
+    {
+      selector: "node.captura-interrogante",
+      style: {
+        label: "?",
+        "font-size": 22,
+        "font-weight": 700,
+        width: 32,
+        height: 32,
+        padding: 0,
+      },
+    },
   ];
 }
 
@@ -1461,25 +1492,15 @@ async function copiarPortapapeles(texto) {
   mensaje("copiado al portapapeles", "ok");
 }
 
-async function compartirTextoUrl(texto) {
+async function compartirConImagen(texto) {
   const url = urlJuego();
-  if (esDispositivoTactil() && puedeUsarWebShare()) {
-    await navigator.share({ title: "Tejepalabras", text: texto, url });
-  } else {
-    await copiarPortapapeles(`${texto}\n${url}`);
-  }
-}
-
-async function compartirVictoriaTactil() {
-  const url = urlJuego();
-  const text = textoCompartir();
   const blob = await capturarGrafo();
   const file = new File([blob], "tejepalabras.png", { type: "image/png" });
-  const conArchivo = { files: [file], title: "Tejepalabras", text, url };
+  const conArchivo = { files: [file], title: "Tejepalabras", text: texto, url };
   if (navigator.canShare?.(conArchivo)) {
     await navigator.share(conArchivo);
   } else {
-    await navigator.share({ title: "Tejepalabras", text, url });
+    await navigator.share({ title: "Tejepalabras", text: texto, url });
   }
 }
 
@@ -1487,16 +1508,12 @@ async function compartir() {
   const btn = $("#btn-compartir");
   btn.disabled = true;
   try {
-    if (ganado) {
-      const url = urlJuego();
-      const text = textoCompartir();
-      if (esDispositivoTactil() && puedeUsarWebShare()) {
-        await compartirVictoriaTactil();
-      } else {
-        await copiarPortapapeles(`${text}\n${url}`);
-      }
+    const text = ganado ? textoCompartir() : textoDesafio();
+    const url = urlJuego();
+    if (esDispositivoTactil() && puedeUsarWebShare()) {
+      await compartirConImagen(text);
     } else {
-      await compartirTextoUrl(textoDesafio());
+      await copiarPortapapeles(`${text}\n${url}`);
     }
   } catch (e) {
     if (e.name !== "AbortError") mensaje("no se pudo compartir", "error");
@@ -1548,9 +1565,53 @@ async function ajustarAspecto43(blob) {
 
 async function capturarGrafo() {
   $("#panel").classList.add("oculto");
-  cy.nodes().addClass("captura");
-  cy.edges().addClass("captura");
-  cy.fit(cy.nodes(), 40);
+
+  const nodoOrigen = cy.getElementById(origen);
+  const nodoDestino = cy.getElementById(destino);
+  const posOrigen = ganado ? null : { ...nodoOrigen.position() };
+  const posDestino = ganado ? null : { ...nodoDestino.position() };
+  let elementosInterrogante = null;
+
+  if (ganado) {
+    cy.nodes().addClass("captura");
+    cy.edges().addClass("captura");
+    cy.fit(cy.nodes(), 40);
+  } else {
+    cy.nodes().difference(nodoOrigen.union(nodoDestino)).addClass("captura-oculto");
+    cy.edges().addClass("captura-oculto");
+
+    const separacionHorizontal = 130;
+    const separacionVertical = 40;
+    nodoOrigen.position({ x: -separacionHorizontal, y: -separacionVertical });
+    nodoDestino.position({ x: separacionHorizontal, y: separacionVertical });
+
+    elementosInterrogante = cy.add([
+      {
+        data: { id: "captura-interrogante" },
+        position: { x: 0, y: 0 },
+        classes: "captura-interrogante",
+      },
+      {
+        data: {
+          id: "captura-interrogante-origen",
+          source: origen,
+          target: "captura-interrogante",
+        },
+        classes: "captura-interrogante",
+      },
+      {
+        data: {
+          id: "captura-interrogante-destino",
+          source: "captura-interrogante",
+          target: destino,
+        },
+        classes: "captura-interrogante",
+      },
+    ]);
+
+    cy.fit(nodoOrigen.union(nodoDestino).union(elementosInterrogante), 40);
+  }
+
   await esperarRepintado();
   try {
     const blob = await cy.png({
@@ -1561,8 +1622,11 @@ async function capturarGrafo() {
     });
     return await ajustarAspecto43(blob);
   } finally {
-    cy.nodes().removeClass("captura");
-    cy.edges().removeClass("captura");
+    if (elementosInterrogante) elementosInterrogante.remove();
+    cy.nodes().removeClass("captura captura-oculto");
+    cy.edges().removeClass("captura captura-oculto");
+    if (posOrigen) nodoOrigen.position(posOrigen);
+    if (posDestino) nodoDestino.position(posDestino);
   }
 }
 
