@@ -483,6 +483,21 @@ body.entrada-activa footer {
 .panel-hint .bi { line-height: 1; }
 .panel-hint:hover { color: var(--texto); }
 .panel-hint.activo { color: var(--exito); }
+.panel-reportar {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--texto-apagado);
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.panel-reportar .bi { line-height: 1; }
+.panel-reportar:hover { color: var(--texto); }
 .panel-cabecera .btn-cerrar {
   padding: 0;
   flex-shrink: 0;
@@ -744,6 +759,32 @@ body.entrada-activa footer {
   gap: 10px;
   justify-content: flex-end;
 }
+.modal-acciones-ancho .btn-modal {
+  flex: 1;
+  text-align: center;
+}
+.modal-acciones-ancho .btn-modal:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.modal-reportar-etiqueta {
+  display: block;
+  margin: 12px 0 6px;
+  font-size: 12px;
+  color: var(--texto-apagado);
+}
+.modal-reportar-comentario {
+  width: 100%;
+  resize: vertical;
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--texto);
+  font: inherit;
+  font-size: 14px;
+}
+.modal-reportar-comentario:focus { outline: none; border-color: var(--texto-debil); }
 .btn-modal {
   padding: 8px 14px;
   border-radius: 8px;

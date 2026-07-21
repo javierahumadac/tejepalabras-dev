@@ -383,6 +383,16 @@ function registrarPalabraRechazada(palabra) {
   });
 }
 
+function registrarPalabraReportada(palabra, tipo, comentario) {
+  if (!window.goatcounter?.count) return;
+  const titulo = comentario ? `${palabra} — ${tipo}: ${comentario}` : `${palabra} — ${tipo}`;
+  window.goatcounter.count({
+    path: `palabra-reportada/${tipo}/${encodeURIComponent(palabra)}`,
+    title: titulo,
+    event: true,
+  });
+}
+
 function normalizarL2(vec) {
   let n2 = 0;
   for (let i = 0; i < vec.length; i++) n2 += vec[i] * vec[i];
@@ -919,6 +929,49 @@ function registrarModalHistoricoDiario() {
   $("#menu-racha-diaria")?.addEventListener("click", (e) => {
     e.stopPropagation();
     abrirHistoricoDiario();
+  });
+}
+
+let reportarTipoSeleccionado = null;
+
+function abrirModalReportar() {
+  if (!panelPalabraActual) return;
+  reportarTipoSeleccionado = null;
+  $("#modal-reportar-subtitulo").textContent = panelPalabraActual;
+  $("#modal-reportar-comentario").value = "";
+  $("#modal-reportar-opciones")
+    .querySelectorAll(".menu-modo-opcion")
+    .forEach((btn) => btn.classList.remove("activo"));
+  $("#modal-reportar-enviar").disabled = true;
+  $("#modal-reportar").classList.remove("oculto");
+}
+
+function registrarModalReportar() {
+  const modal = $("#modal-reportar");
+  if (!modal) return;
+  const cerrar = () => modal.classList.add("oculto");
+  $("#modal-reportar-cerrar")?.addEventListener("click", cerrar);
+  $("#modal-reportar-cancelar")?.addEventListener("click", cerrar);
+  modal.querySelector("[data-cerrar-reportar]")?.addEventListener("click", cerrar);
+
+  $("#modal-reportar-opciones")
+    .querySelectorAll(".menu-modo-opcion")
+    .forEach((btn) => {
+      btn.addEventListener("click", () => {
+        reportarTipoSeleccionado = btn.dataset.tipoReporte;
+        $("#modal-reportar-opciones")
+          .querySelectorAll(".menu-modo-opcion")
+          .forEach((b) => b.classList.toggle("activo", b === btn));
+        $("#modal-reportar-enviar").disabled = false;
+      });
+    });
+
+  $("#modal-reportar-enviar")?.addEventListener("click", () => {
+    if (!reportarTipoSeleccionado || !panelPalabraActual) return;
+    const comentario = $("#modal-reportar-comentario").value.trim().slice(0, 100);
+    registrarPalabraReportada(panelPalabraActual, reportarTipoSeleccionado, comentario);
+    cerrar();
+    mensaje("¡Gracias por tu reporte!");
   });
 }
 
@@ -1920,6 +1973,7 @@ function registrarEventos() {
   });
   registrarMenuModos();
   registrarModalHistoricoDiario();
+  registrarModalReportar();
   $("#btn-compartir").addEventListener("click", () => void compartir());
   $("#mensaje").addEventListener("click", () => {
     if (!ganado) return;
@@ -1934,6 +1988,7 @@ function registrarEventos() {
     actualizarVisibilidadHint();
     renderizarPanelLista();
   });
+  $("#panel-reportar")?.addEventListener("click", () => abrirModalReportar());
 
   const ayuda = $("#ayuda");
   const menuModos = $("#menu-modos");

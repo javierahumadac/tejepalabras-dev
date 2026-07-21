@@ -45,6 +45,13 @@ Todo corre en el navegador, sin backend:
 - Formas geométricas y afines a partir del [Apéndice:Formas](https://es.wiktionary.org/wiki/Ap%C3%A9ndice:Formas) de Wikcionario en español.
 - Términos de química a partir del [Apéndice:Química](https://es.wiktionary.org/wiki/Ap%C3%A9ndice:Qu%C3%ADmica) de Wikcionario en español.
 
+## Filtro de palabras ofensivas
+
+`web/diccionario_es.pool` excluye palabras vulgares u ofensivas (siguen siendo válidas en `diccionario_es.vocab`, solo no se eligen como palabra origen/destino):
+
+- [LDNOOBW](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words) (68 términos, curado a mano por la comunidad).
+- [coffee-and-fun/google-profanity-words](https://github.com/coffee-and-fun/google-profanity-words) (lista derivada de Google, en español, ~560 líneas).
+
 ## Modelo de similitud
 
 La similitud mide **uso compartido en contexto** (hipótesis distribucional), no parecido ortográfico ni subpalabras.

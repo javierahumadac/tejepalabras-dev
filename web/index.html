@@ -57,6 +57,9 @@
         <button id="panel-hint" class="panel-hint oculto" type="button" aria-pressed="false" aria-label="Ver pistas de palabras" title="Ver pistas de palabras">
           <i class="bi bi-lightbulb" aria-hidden="true"></i>
         </button>
+        <button id="panel-reportar" class="panel-reportar" type="button" aria-haspopup="dialog" aria-controls="modal-reportar" aria-label="Reportar palabra" title="Reportar palabra">
+          <i class="bi bi-flag" aria-hidden="true"></i>
+        </button>
       </div>
       <button id="panel-cerrar" class="btn-icono btn-cerrar" type="button" aria-label="Cerrar">
         <i class="bi bi-x-lg" aria-hidden="true"></i>
@@ -326,10 +329,47 @@
     </div>
   </div>
 
+  <div id="modal-reportar" class="modal oculto" role="dialog" aria-modal="true" aria-labelledby="modal-reportar-titulo">
+    <div class="modal-fondo" data-cerrar-reportar></div>
+    <div class="modal-caja">
+      <div class="modal-cabecera">
+        <div class="modal-titulo-wrap">
+          <strong id="modal-reportar-titulo">Reportar palabra</strong>
+          <span id="modal-reportar-subtitulo" class="modal-subtitulo">–</span>
+        </div>
+        <button type="button" id="modal-reportar-cerrar" class="btn-icono btn-cerrar" aria-label="Cerrar">
+          <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div class="modal-cuerpo">
+        <div id="modal-reportar-opciones" class="menu-modos-opciones">
+          <button type="button" class="menu-modo-opcion" data-tipo-reporte="ofensiva">
+            <i class="bi bi-exclamation-octagon" aria-hidden="true"></i>
+            <span>Palabra ofensiva</span>
+          </button>
+          <button type="button" class="menu-modo-opcion" data-tipo-reporte="no-conecta">
+            <i class="bi bi-x-diamond" aria-hidden="true"></i>
+            <span>No se conecta</span>
+          </button>
+          <button type="button" class="menu-modo-opcion" data-tipo-reporte="otro">
+            <i class="bi bi-three-dots" aria-hidden="true"></i>
+            <span>Otro</span>
+          </button>
+        </div>
+        <label for="modal-reportar-comentario" class="modal-reportar-etiqueta">Comentario (opcional)</label>
+        <textarea id="modal-reportar-comentario" class="modal-reportar-comentario" rows="3" maxlength="100" placeholder="Cuéntanos más…"></textarea>
+      </div>
+      <div class="modal-pie modal-acciones modal-acciones-ancho">
+        <button type="button" id="modal-reportar-cancelar" class="btn-modal btn-modal-secundario">Cancelar</button>
+        <button type="button" id="modal-reportar-enviar" class="btn-modal btn-modal-primario" disabled>Enviar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- GOATCOUNTER_START -->
   <script data-goatcounter="%%GOATCOUNTER_ENDPOINT%%"
           async src="//gc.zgo.at/count.js"></script>
   <!-- GOATCOUNTER_END -->
-  <script type="module" src="juego.js?v=32"></script>
+  <script type="module" src="juego.js?v=33"></script>
 </body>
 </html>
