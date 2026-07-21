@@ -182,12 +182,19 @@ header {
   align-items: center;
   gap: 4px;
   margin-left: auto;
+  padding: 4px 6px;
+  border-radius: 5px;
   font-size: 13px;
   font-weight: 700;
-  color: var(--acento);
+  color: var(--texto-apagado);
   flex-shrink: 0;
+  cursor: pointer;
 }
-.menu-modo-racha .bi { color: var(--acento); font-size: 1rem; }
+.menu-modo-racha:hover { background: var(--superficie); }
+.menu-modo-racha .bi { color: var(--texto-apagado); font-size: 1rem; }
+.menu-modo-opcion:hover .menu-modo-racha,
+.menu-modo-opcion:hover .menu-modo-racha .bi { color: var(--texto-secundario); }
+.menu-modo-opcion.activo .menu-modo-racha,
 .menu-modo-opcion.activo .menu-modo-racha .bi { color: var(--acento); }
 .modal-umbral-fila {
   display: flex;
@@ -497,6 +504,7 @@ body.entrada-activa footer {
 #panel-lista li span:last-child { color: var(--texto-apagado); }
 #panel-lista li.conecta span:last-child { color: var(--exito); font-weight: 600; }
 
+#modal-historico-diario { z-index: 101; }
 .modal {
   position: fixed;
   inset: 0;
@@ -703,7 +711,8 @@ body.entrada-activa footer {
   font-size: 12px;
   color: var(--texto-debil);
 }
-#grafico-historico {
+#grafico-historico,
+#grafico-historico-menu {
   width: 100%;
   height: 120px;
   display: block;

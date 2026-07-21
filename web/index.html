@@ -154,6 +154,31 @@
     </div>
   </div>
 
+  <div id="modal-historico-diario" class="modal oculto" role="dialog" aria-modal="true" aria-labelledby="modal-historico-diario-titulo">
+    <div class="modal-fondo" data-cerrar-historico-diario></div>
+    <div class="modal-caja">
+      <div class="modal-cabecera">
+        <div class="modal-titulo-wrap">
+          <strong id="modal-historico-diario-titulo">Reto del día</strong>
+          <span class="modal-subtitulo">Tu racha</span>
+        </div>
+        <button type="button" id="modal-historico-diario-cerrar" class="btn-icono btn-cerrar" aria-label="Cerrar">
+          <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div class="modal-cuerpo">
+        <p class="racha-diaria">
+          <i class="bi bi-fire" aria-hidden="true"></i>
+          Racha actual: <strong id="modal-racha-diaria-valor">0</strong> <span id="modal-racha-diaria-unidad">días</span>
+        </p>
+        <div id="modal-historico-diario-grafico" class="historico-diario oculto">
+          <p class="grafico-historico-leyenda">Histórico</p>
+          <canvas id="grafico-historico-menu" width="360" height="120" aria-label="Histórico de puntajes diarios"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="menu-modos" class="modal oculto" role="dialog" aria-modal="true" aria-labelledby="menu-modos-titulo">
     <div class="modal-fondo" data-cerrar-menu-modos></div>
     <div class="modal-caja">

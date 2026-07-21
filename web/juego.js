@@ -830,6 +830,41 @@ async function restaurarPalabras(palabras) {
   }
 }
 
+function abrirHistoricoDiario() {
+  const modal = $("#modal-historico-diario");
+  if (!modal) return;
+  const historico = cargarHistoricoDiario();
+  const racha = calcularRacha(historico);
+  const valorEl = $("#modal-racha-diaria-valor");
+  if (valorEl) valorEl.textContent = racha;
+  const unidadEl = $("#modal-racha-diaria-unidad");
+  if (unidadEl) unidadEl.textContent = racha === 1 ? "día" : "días";
+
+  const entradas = entradasHistoricoOrdenadas(historico);
+  const bloqueGrafico = $("#modal-historico-diario-grafico");
+  if (entradas.length < 2) {
+    bloqueGrafico?.classList.add("oculto");
+  } else {
+    bloqueGrafico?.classList.remove("oculto");
+    requestAnimationFrame(() => {
+      dibujarGraficoHistorico(entradas, $("#grafico-historico-menu"));
+    });
+  }
+  modal.classList.remove("oculto");
+}
+
+function registrarModalHistoricoDiario() {
+  const modal = $("#modal-historico-diario");
+  if (!modal) return;
+  const cerrar = () => modal.classList.add("oculto");
+  $("#modal-historico-diario-cerrar")?.addEventListener("click", cerrar);
+  modal.querySelector("[data-cerrar-historico-diario]")?.addEventListener("click", cerrar);
+  $("#menu-racha-diaria")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    abrirHistoricoDiario();
+  });
+}
+
 function actualizarMenuModos() {
   const fechaEl = $("#menu-fecha-diario");
   if (fechaEl) fechaEl.textContent = fechaHoyCorta();
@@ -1160,8 +1195,7 @@ function mostrarResultado({ verdes, grises, sueltos, puntaje }) {
   if (!restaurando) $("#modal-final").classList.remove("oculto");
 }
 
-function dibujarGraficoHistorico(entradas) {
-  const canvas = $("#grafico-historico");
+function dibujarGraficoHistorico(entradas, canvas = $("#grafico-historico")) {
   if (!canvas) return;
   const dpr = window.devicePixelRatio || 1;
   const cssW = canvas.clientWidth || 360;
@@ -1827,6 +1861,7 @@ function registrarEventos() {
     await anadirPalabra(valor);
   });
   registrarMenuModos();
+  registrarModalHistoricoDiario();
   $("#btn-compartir").addEventListener("click", () => void compartir());
   $("#mensaje").addEventListener("click", () => {
     if (!ganado) return;
