@@ -147,6 +147,7 @@ let modo = MODO_DIARIO;
 const CLAVE_DIARIO = "tejepalabras-diario-estado";
 const CLAVE_HISTORICO_DIARIO = "tejepalabras-historico-diario";
 const HISTORICO_MAX = 90;
+const CLAVE_RACHA_DIARIA = "tejepalabras-racha-diaria";
 
 // PRNG determinístico (mulberry32) sembrado con la fecha de hoy
 function seedDesdeTexto(str) {
@@ -282,6 +283,62 @@ function calcularRacha(historico, hoy = fechaHoyStr()) {
     cursor.setDate(cursor.getDate() - 1);
   }
   return racha;
+}
+
+function cargarRachaDiaria() {
+  try {
+    const bruto = localStorage.getItem(CLAVE_RACHA_DIARIA);
+    if (!bruto) return null;
+    const datos = JSON.parse(bruto);
+    if (
+      !datos ||
+      typeof datos.fecha !== "string" ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(datos.fecha) ||
+      !Number.isFinite(datos.racha)
+    ) {
+      return null;
+    }
+    return { fecha: datos.fecha, racha: Number(datos.racha) };
+  } catch {
+    return null;
+  }
+}
+
+function guardarRachaDiaria(fecha, racha) {
+  try {
+    localStorage.setItem(CLAVE_RACHA_DIARIA, JSON.stringify({ fecha, racha }));
+  } catch {
+    // localStorage puede no estar disponible.
+  }
+}
+
+function registrarRachaDiaria(hoy = fechaHoyStr()) {
+  const guardado = cargarRachaDiaria();
+  if (guardado && guardado.fecha === hoy) return guardado.racha;
+
+  let racha = 1;
+  if (guardado) {
+    const ayer = parseFechaStr(hoy);
+    ayer.setDate(ayer.getDate() - 1);
+    if (guardado.fecha === fechaAStr(ayer)) racha = guardado.racha + 1;
+  }
+  guardarRachaDiaria(hoy, racha);
+  return racha;
+}
+
+/**
+ * Racha vigente para mostrar en pantalla, sin modificarla: si el último día
+ * guardado no es hoy ni ayer, la racha se considera reiniciada (0).
+ */
+function obtenerRachaDiaria(hoy = fechaHoyStr()) {
+  const guardado = cargarRachaDiaria();
+  if (!guardado) return calcularRacha(cargarHistoricoDiario(), hoy);
+
+  if (guardado.fecha === hoy) return guardado.racha;
+  const ayer = parseFechaStr(hoy);
+  ayer.setDate(ayer.getDate() - 1);
+  if (guardado.fecha === fechaAStr(ayer)) return guardado.racha;
+  return 0;
 }
 
 /** Últimas `cantidad` fechas del calendario hasta hoy, rellenando días sin jugar con 0. */
@@ -834,7 +891,7 @@ function abrirHistoricoDiario() {
   const modal = $("#modal-historico-diario");
   if (!modal) return;
   const historico = cargarHistoricoDiario();
-  const racha = calcularRacha(historico);
+  const racha = obtenerRachaDiaria();
   const valorEl = $("#modal-racha-diaria-valor");
   if (valorEl) valorEl.textContent = racha;
   const unidadEl = $("#modal-racha-diaria-unidad");
@@ -871,7 +928,7 @@ function actualizarMenuModos() {
   document.querySelectorAll(".menu-modo-opcion").forEach((btn) => {
     btn.classList.toggle("activo", btn.dataset.modo === modo);
   });
-  const racha = calcularRacha(cargarHistoricoDiario());
+  const racha = obtenerRachaDiaria();
   const rachaWrap = $("#menu-racha-diaria");
   const rachaValorEl = $("#menu-racha-diaria-valor");
   if (rachaWrap && rachaValorEl) {
@@ -1296,7 +1353,7 @@ function renderizarEstadisticaDiaria() {
     $("#estadistica-diaria")?.classList.add("oculto");
     return;
   }
-  const racha = calcularRacha(historico);
+  const racha = obtenerRachaDiaria();
   const rachaEl = $("#racha-diaria-valor");
   if (rachaEl) rachaEl.textContent = racha;
   const unidadEl = $("#racha-diaria-unidad");
@@ -1319,6 +1376,7 @@ function renderizarEstadisticaDiaria() {
 
 function actualizarEstadisticaDiaria(puntaje) {
   guardarPuntajeDiario(fechaHoyStr(), puntaje);
+  registrarRachaDiaria();
   if (restaurando) return;
   renderizarEstadisticaDiaria();
 }
