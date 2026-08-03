@@ -24,6 +24,7 @@ const partida = {
   puntaje: () => 0,
   calidadPuntaje: () => null,
   esDiario: () => false,
+  esDificil: () => false,
   urlJuego: () => location.href,
   alMensaje: () => {},
 };
@@ -94,6 +95,15 @@ function colorBarraCaptura() {
 
 function colorAcento() {
   return Theme.colorCss("--acento") || "#e2586b";
+}
+
+function colorTextoDebil() {
+  return Theme.colorCss("--texto-debil") || "#666666";
+}
+
+/** Racha: acento si se ganó en difícil; texto-debil en fácil. */
+function colorRacha() {
+  return partida.esDificil() ? colorAcento() : colorTextoDebil();
 }
 
 /** Icono bi-fire (\uF7F6) si la fuente está lista; si no, emoji. */
@@ -236,7 +246,7 @@ async function anadirTextosCaptura(imagen, rutaOverlay = null) {
 
       contexto.textBaseline = "top";
       contexto.textAlign = "left";
-      contexto.fillStyle = colorAcento();
+      contexto.fillStyle = colorRacha();
       contexto.font = fuego.fuente;
       const anchoIcono = contexto.measureText(fuego.texto).width;
       contexto.font = fuenteRacha;

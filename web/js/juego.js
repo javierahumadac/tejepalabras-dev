@@ -27,6 +27,7 @@ let vecinosDestino = [];
 let partidaGanada = false;
 let ultimoPuntaje = null;
 let ultimaCalidadPuntaje = null;
+let ganadaEnDificil = false;
 let restaurandoPalabras = false;
 let modoDificil = false;
 let modoDificilPendiente = null;
@@ -125,6 +126,7 @@ async function iniciarAplicacion() {
     puntaje: () => ultimoPuntaje,
     calidadPuntaje: () => ultimaCalidadPuntaje,
     esDiario: () => modoJuego === MODO_DIARIO,
+    esDificil: () => ganadaEnDificil,
     urlJuego: () => {
       const url = construirUrlActualDelJuego();
       return url.href.replace(/\/$/, "") || url.origin;
@@ -164,6 +166,7 @@ async function nuevoJuego(diario = false, parObjetivo = null) {
   partidaGanada = false;
   ultimoPuntaje = null;
   ultimaCalidadPuntaje = null;
+  ganadaEnDificil = false;
   SimilitudService.limpiarCacheSimilitudes();
   modoJuego = diario ? MODO_DIARIO : MODO_PRACTICA;
   $("#panel").classList.add("oculto");
@@ -201,6 +204,7 @@ async function nuevoJuegoLibre() {
   partidaGanada = false;
   ultimoPuntaje = null;
   ultimaCalidadPuntaje = null;
+  ganadaEnDificil = false;
   SimilitudService.limpiarCacheSimilitudes();
   origen = null;
   destino = null;
@@ -253,6 +257,7 @@ async function limpiarPalabrasDelTablero() {
   partidaGanada = false;
   ultimoPuntaje = null;
   ultimaCalidadPuntaje = null;
+  ganadaEnDificil = false;
   $("#panel").classList.add("oculto");
   $("#modal-final").classList.add("oculto");
   bloquearCampoEntrada(false);
@@ -417,7 +422,7 @@ function actualizarEstadoConexion(aristas) {
   flecha.classList.toggle("ok", conectados);
   flecha.firstElementChild.className = conectados ? "bi bi-arrow-right" : "bi bi-three-dots";
 
-  if (conectados && !partidaGanada) ganarPartida(aristas);
+  if (conectados && !partidaGanada) void ganarPartida(aristas);
   else if (!conectados) {
     Tablero.marcarRuta();
   }
@@ -590,20 +595,35 @@ function renderizarEstadisticaDiaria() {
   });
 }
 
-function ganarPartida(aristas) {
+async function ganarPartida(aristas) {
   partidaGanada = true;
+  ganadaEnDificil = modoDificil;
   const ruta = obtenerCaminoMasCorto(aristas);
-  Tablero.marcarRuta(ruta);
   const resultado = calcularPuntaje(aristas, ruta);
   const calidad = clasificarCalidadPuntaje(resultado);
-  mensaje(`puntaje: ${resultado.puntaje}`, `${calidad} clicable`);
   bloquearCampoEntrada(true);
-  mostrarResultadoFinal(resultado, calidad);
+
   if (modoJuego === MODO_DIARIO) {
     Saves.guardarPuntajeDiario(Fechas.hoy(), resultado.puntaje);
     Saves.registrarRachaDiaria();
     if (!restaurandoPalabras) renderizarEstadisticaDiaria();
   }
+
+  // Reinicia el tablero y reaparece cada palabra (200 ms) para celebrar la victoria.
+  if (!restaurandoPalabras) {
+    const puentes = [...Tablero.getPalabras()].filter(
+      (palabra) => palabra !== origen && palabra !== destino
+    );
+    Tablero.resetearObjetivos(origen, destino);
+    await Tablero.reconstruir();
+    Tablero.posicionar();
+    if (puentes.length) await restaurarPalabrasGuardadas(puentes);
+  }
+
+  Tablero.marcarRuta(ruta);
+  mensaje(`puntaje: ${resultado.puntaje}`, `${calidad} clicable`);
+  await new Promise((resolver) => setTimeout(resolver, 1500));
+  mostrarResultadoFinal(resultado, calidad);
 }
 
 async function agregarPalabra(textoIngresado) {
