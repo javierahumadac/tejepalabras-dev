@@ -29,9 +29,9 @@ import numpy as np
 from sklearn.decomposition import PCA
 
 RAIZ = Path(__file__).resolve().parents[1]
-SALIDA_VOCAB = RAIZ / "web" / "diccionario_es.vocab"
-SALIDA_JSON = RAIZ / "web" / "embeddings.json"
-SALIDA_BIN = RAIZ / "web" / "embeddings.bin"
+SALIDA_VOCAB = RAIZ / "web" / "data" / "diccionario_es.vocab"
+SALIDA_JSON = RAIZ / "web" / "data" / "embeddings.json"
+SALIDA_BIN = RAIZ / "web" / "data" / "embeddings.bin"
 CACHE_DIR = RAIZ / "data"
 CACHE_BZ2 = CACHE_DIR / "SBW-vectors-300-min5.txt.bz2"
 
