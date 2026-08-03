@@ -10,10 +10,11 @@ import { Rng } from "./utils/Rng.js";
 import { Saves } from "./utils/Saves.js";
 import { Theme } from "./utils/Theme.js";
 
-// Retocado para word2vec SBWC + PCA 256d con "All-but-the-Top" (quita las
-// direcciones dominantes comunes a casi toda palabra antes de reducir
-// dimensiones; ver scripts/probar_all_but_top.py): pares aleatorios
-// ~p95≈14%, ~p99≈22%; sinónimos casi siempre 30–80%.
+// Constantes
+const CANTIDAD_PISTAS_PANEL = 5;
+const PUNTOS_VERDE = 1;
+const PUNTOS_GRIS = 2;
+const PUNTOS_ROJO = 3;
 const UMBRAL_NORMAL = 16.5;
 const UMBRAL_DIFICIL = 21.5;
 
@@ -23,36 +24,29 @@ let vecinosOrigen = [];
 let vecinosDestino = [];
 
 // Estados
-let ganado = false;
+let partidaGanada = false;
 let ultimoPuntaje = null;
-let ultimaCalidad = null; // "puntaje-bueno" | "puntaje-regular" | "puntaje-malo"
-let restaurando = false;
-let dificil = false;
-let pendienteDificil = null;
+let ultimaCalidadPuntaje = null;
+let restaurandoPalabras = false;
+let modoDificil = false;
+let modoDificilPendiente = null;
 let raeVisible = true;
-let hintVisible = true;
-let ayudaVista = false;
+let pistasVisibles = true;
+let ayudaYaMostrada = false;
 let temaClaro = false;
 
 const CLAVE_DIFICULTAD = "tejepalabras-dificultad";
 
-function umbralActual() {
-  return dificil ? UMBRAL_DIFICIL : UMBRAL_NORMAL;
-}
-
-function textoConfirmarDificultad(haciaDificil) {
-  const desde = haciaDificil ? UMBRAL_NORMAL : UMBRAL_DIFICIL;
-  const hacia = haciaDificil ? UMBRAL_DIFICIL : UMBRAL_NORMAL;
-  const cambio = haciaDificil ? "aumentará" : "disminuirá";
-  return `La similitud que tienen que tener 2 palabras para enlazarse ${cambio} (${desde}% → ${hacia}%) y se limpiará el tablero. ¿Continuar?`;
+function umbralSimilitudActual() {
+  return modoDificil ? UMBRAL_DIFICIL : UMBRAL_NORMAL;
 }
 
 const CLAVE_RAE = "tejepalabras-rae";
-const CLAVE_HINT = "tejepalabras-hint";
+const CLAVE_PISTAS = "tejepalabras-hint";
 const CLAVE_AYUDA_VISTA = "tejepalabras-ayuda-vista";
 const CLAVE_TEMA = "tejepalabras-tema";
 
-function actualizarTemaInfo() {
+function actualizarInfoTema() {
   const switchTema = $("#switch-tema");
   if (switchTema) switchTema.checked = temaClaro;
 }
@@ -60,83 +54,86 @@ function actualizarTemaInfo() {
 const MODO_DIARIO = "diario";
 const MODO_PRACTICA = "practica";
 const MODO_LIBRE = "libre";
-let modo = MODO_DIARIO;
+let modoJuego = MODO_DIARIO;
 
 /** Persiste el tablero del diario solo si hay partida diaria activa. */
 function guardarEstadoDiario() {
-  if (modo !== MODO_DIARIO || !origen || !destino) return;
+  if (modoJuego !== MODO_DIARIO || !origen || !destino) return;
   Saves.guardarEstadoDiario(
     origen,
     destino,
-    [...Tablero.getPalabras()].filter((p) => p !== origen && p !== destino)
+    [...Tablero.getPalabras()].filter((palabra) => palabra !== origen && palabra !== destino)
   );
 }
 
-const $ = (sel) => document.querySelector(sel);
+const $ = (selector) => document.querySelector(selector);
 
-function norm(s) {
-  return s.trim().toLowerCase().normalize("NFC");
+function normalizarTexto(texto) {
+  return texto.trim().toLowerCase().normalize("NFC");
 }
 
-function actualizarUmbralInfo() {
-  const modo = dificil ? "difícil" : "normal";
-  $("#umbral-info").textContent = `Modo ${modo} (Enlace mínimo: ${umbralActual()}% de similitud).`;
+function actualizarInfoUmbral() {
+  const etiquetaDificultad = modoDificil ? "difícil" : "normal";
+  $("#umbral-info").textContent = `Modo ${etiquetaDificultad} (Enlace mínimo: ${umbralSimilitudActual()}% de similitud).`;
   const switchDificultad = $("#switch-dificultad");
-  if (switchDificultad) switchDificultad.checked = dificil;
+  if (switchDificultad) switchDificultad.checked = modoDificil;
 }
 
-function actualizarRaeInfo() {
+function actualizarInfoRae() {
   const switchRae = $("#switch-rae");
   if (switchRae) switchRae.checked = raeVisible;
   $("#panel-rae")?.classList.toggle("oculto", !raeVisible);
 }
 
-function actualizarHintInfo() {
-  const switchHint = $("#switch-hint");
-  if (switchHint) switchHint.checked = hintVisible;
-  actualizarVisibilidadHint();
+function actualizarInfoPistas() {
+  const switchPistas = $("#switch-hint");
+  if (switchPistas) switchPistas.checked = pistasVisibles;
+  actualizarVisibilidadBotonPista();
 }
 
-function cancelarCambioDificultad() {
-  pendienteDificil = null;
+function cancelarCambioModoDificil() {
+  modoDificilPendiente = null;
   const switchDificultad = $("#switch-dificultad");
-  if (switchDificultad) switchDificultad.checked = dificil;
+  if (switchDificultad) switchDificultad.checked = modoDificil;
   $("#modal-confirmar-dificultad")?.classList.add("oculto");
 }
 
-async function iniciar() {
-  dificil = Saves.cargarBooleano(CLAVE_DIFICULTAD, false);
-  actualizarUmbralInfo();
+async function iniciarAplicacion() {
+  modoDificil = Saves.cargarBooleano(CLAVE_DIFICULTAD, false);
+  actualizarInfoUmbral();
   raeVisible = Saves.cargarBooleano(CLAVE_RAE, true);
-  actualizarRaeInfo();
-  hintVisible = Saves.cargarBooleano(CLAVE_HINT, true);
-  actualizarHintInfo();
+  actualizarInfoRae();
+  pistasVisibles = Saves.cargarBooleano(CLAVE_PISTAS, true);
+  actualizarInfoPistas();
   temaClaro = Saves.cargarBooleano(CLAVE_TEMA, false);
   Theme.aplicar(temaClaro);
-  actualizarTemaInfo();
-  ayudaVista = Saves.cargarBooleano(CLAVE_AYUDA_VISTA, false);
+  actualizarInfoTema();
+  ayudaYaMostrada = Saves.cargarBooleano(CLAVE_AYUDA_VISTA, false);
   Tablero.configurar({
-    umbral: umbralActual,
+    umbral: umbralSimilitudActual,
     origen: () => origen,
     destino: () => destino,
-    alCambiarAristas: (aristas) => actualizarEstado(aristas),
-    alTocarNodo: (id) => void mostrarPanel(id),
+    alCambiarAristas: (aristas) => actualizarEstadoConexion(aristas),
+    alTocarNodo: (id) => void mostrarPanelPalabra(id),
     alTocarFondo: () => $("#panel").classList.add("oculto"),
   });
   Tablero.crear($("#grafo"));
   Share.configurar({
     origen: () => origen,
     destino: () => destino,
-    ganado: () => ganado,
+    ganado: () => partidaGanada,
     puntaje: () => ultimoPuntaje,
-    calidadPuntaje: () => ultimaCalidad,
-    esDiario: () => modo === MODO_DIARIO,
-    urlJuego,
+    calidadPuntaje: () => ultimaCalidadPuntaje,
+    esDiario: () => modoJuego === MODO_DIARIO,
+    urlJuego: () => {
+      const url = construirUrlActualDelJuego();
+      return url.href.replace(/\/$/, "") || url.origin;
+    },
     alMensaje: mensaje,
   });
   Share.aplicarEstilos();
-  registrarEventos();
-  bloquearEntrada(true);
+  registrarEventosInterfaz();
+  bloquearCampoEntrada(true);
   mensaje("cargando vectores…");
   try {
     await SimilitudService.cargar();
@@ -144,22 +141,17 @@ async function iniciar() {
     console.error(e);
     return mensaje("no se pudieron cargar los vectores", "error");
   }
-  bloquearEntrada(false);
-  const parUrl = leerParamsPractica();
+  bloquearCampoEntrada(false);
+  const parUrl = leerParObjetivoDesdeUrl();
   if (parUrl) await nuevoJuego(false, parUrl);
   else await nuevoJuego(true);
 }
 
-function bloquearEntrada(bloquear) {
+function bloquearCampoEntrada(bloquear) {
   $("#entrada").disabled = bloquear;
 }
 
-function placeholderPuente() {
-  const entrada = $("#entrada");
-  if (entrada) entrada.placeholder = "palabra puente…";
-}
-
-function placeholderLibre() {
+function establecerPlaceholderLibre() {
   const entrada = $("#entrada");
   if (!entrada) return;
   if (!origen) entrada.placeholder = "palabra origen…";
@@ -167,131 +159,127 @@ function placeholderLibre() {
   else entrada.placeholder = "palabra puente…";
 }
 
-async function nuevoJuego(diario = false, par = null) {
+async function nuevoJuego(diario = false, parObjetivo = null) {
   if (!SimilitudService.datosCargados) return;
-  ganado = false;
+  partidaGanada = false;
   ultimoPuntaje = null;
-  ultimaCalidad = null;
+  ultimaCalidadPuntaje = null;
   SimilitudService.limpiarCacheSimilitudes();
-  modo = diario ? MODO_DIARIO : MODO_PRACTICA;
+  modoJuego = diario ? MODO_DIARIO : MODO_PRACTICA;
   $("#panel").classList.add("oculto");
   $("#modal-final").classList.add("oculto");
-  bloquearEntrada(false);
-  placeholderPuente();
+  bloquearCampoEntrada(false);
+  const entrada = $("#entrada");
+  if (entrada) entrada.placeholder = "palabra puente…";
   mensaje("preparando partida…");
 
   let estadoGuardado = null;
-  if (par) {
-    [origen, destino] = par;
+  if (parObjetivo) {
+    [origen, destino] = parObjetivo;
   } else if (diario && (estadoGuardado = Saves.cargarEstadoDiario())) {
     [origen, destino] = [estadoGuardado.origen, estadoGuardado.destino];
   } else {
     const rng = diario ? Rng.delDia() : Math.random;
     [origen, destino] = await SimilitudService.elegirPalabrasObjetivo(rng);
   }
-  actualizarVecinosObjetivos();
+  actualizarVecinosDeObjetivos();
   $("#origen").textContent = origen;
   $("#destino").textContent = destino;
   Tablero.resetearObjetivos(origen, destino);
   await Tablero.reconstruir();
   Tablero.posicionar();
-  if (estadoGuardado?.palabras.length) await restaurarPalabras(estadoGuardado.palabras);
+  if (estadoGuardado?.palabras.length) await restaurarPalabrasGuardadas(estadoGuardado.palabras);
   actualizarMenuModos();
-  actualizarUrl();
-  if (!ganado) mensaje("");
+  actualizarUrlDelNavegador();
+  mensaje("");
   $("#entrada").focus();
   guardarEstadoDiario();
 }
 
 async function nuevoJuegoLibre() {
   if (!SimilitudService.datosCargados) return;
-  ganado = false;
+  partidaGanada = false;
   ultimoPuntaje = null;
-  ultimaCalidad = null;
+  ultimaCalidadPuntaje = null;
   SimilitudService.limpiarCacheSimilitudes();
   origen = null;
   destino = null;
   vecinosOrigen = [];
   vecinosDestino = [];
   Tablero.vaciar();
-  modo = MODO_LIBRE;
+  modoJuego = MODO_LIBRE;
   $("#panel").classList.add("oculto");
   $("#modal-final").classList.add("oculto");
-  bloquearEntrada(false);
+  bloquearCampoEntrada(false);
   $("#origen").textContent = "–";
   $("#destino").textContent = "–";
   const flecha = $("#estado-flecha");
   flecha.classList.remove("ok");
   flecha.firstElementChild.className = "bi bi-three-dots";
-  placeholderLibre();
+  establecerPlaceholderLibre();
   mensaje("elige la palabra origen");
   actualizarMenuModos();
-  actualizarUrl();
+  actualizarUrlDelNavegador();
   $("#entrada").focus();
 }
 
-async function definirPalabraLibre(p) {
+async function definirPalabraModoLibre(palabra) {
   if (!origen) {
-    origen = p;
-    Tablero.insertar(p, { objetivo: true });
+    origen = palabra;
+    Tablero.insertar(palabra, { objetivo: true });
     $("#origen").textContent = origen;
-    placeholderLibre();
+    establecerPlaceholderLibre();
     mensaje("elige la palabra destino");
     $("#entrada").focus();
     return;
   }
 
-  destino = p;
-  Tablero.insertar(p, { objetivo: true });
+  destino = palabra;
+  Tablero.insertar(palabra, { objetivo: true });
   $("#destino").textContent = destino;
   await SimilitudService.asegurarSimilitud(origen, destino);
-  actualizarVecinosObjetivos();
+  actualizarVecinosDeObjetivos();
   await Tablero.reconstruir();
   Tablero.posicionar();
-  actualizarUrl();
-  placeholderLibre();
-  if (!ganado) mensaje("");
+  actualizarUrlDelNavegador();
+  establecerPlaceholderLibre();
+  mensaje("");
   $("#entrada").focus();
 }
 
 /** Deja solo origen y destino; quita el resto de palabras del tablero */
-async function limpiarTablero() {
+async function limpiarPalabrasDelTablero() {
   if (!origen || !destino) return;
-  ganado = false;
+  partidaGanada = false;
   ultimoPuntaje = null;
-  ultimaCalidad = null;
+  ultimaCalidadPuntaje = null;
   $("#panel").classList.add("oculto");
   $("#modal-final").classList.add("oculto");
-  bloquearEntrada(false);
+  bloquearCampoEntrada(false);
   Tablero.resetearObjetivos(origen, destino);
   await Tablero.reconstruir();
   Tablero.posicionar();
-  if (!ganado) mensaje("");
+  mensaje("");
   guardarEstadoDiario();
 }
 
 /** Reinserta, en orden, las palabras que la persona ya había agregado hoy */
-async function restaurarPalabras(palabras) {
-  restaurando = true;
+async function restaurarPalabrasGuardadas(palabras) {
+  restaurandoPalabras = true;
   try {
-    let primera = true;
-    for (const p of palabras) {
-      if (Tablero.tiene(p) || !SimilitudService.existeEnDiccionario(p)) continue;
-      try {
-        SimilitudService.calcularSimilitudesContra(p, Tablero.getPalabras());
-      } catch {
-        continue;
-      }
-      if (!primera) await new Promise((r) => setTimeout(r, 200));
-      primera = false;
-      await colocar(p);
+    let esPrimera = true;
+    for (const palabra of palabras) {
+      if (Tablero.tiene(palabra) || !SimilitudService.existeEnDiccionario(palabra)) continue;
+      if (!esPrimera) await new Promise((resolver) => setTimeout(resolver, 200));
+      esPrimera = false;
+      await colocarPalabraEnTablero(palabra);
     }
   } finally {
-    restaurando = false;
+    restaurandoPalabras = false;
   }
 }
 
-function abrirHistoricoDiario() {
+function abrirModalHistoricoDiario() {
   const modal = $("#modal-historico-diario");
   if (!modal) return;
   const historico = Saves.cargarHistoricoDiario();
@@ -313,7 +301,7 @@ function abrirHistoricoDiario() {
   modal.classList.remove("oculto");
 }
 
-function registrarModalHistoricoDiario() {
+function registrarEventosModalHistoricoDiario() {
   const modal = $("#modal-historico-diario");
   if (!modal) return;
   const cerrar = () => modal.classList.add("oculto");
@@ -321,15 +309,15 @@ function registrarModalHistoricoDiario() {
   modal.querySelector("[data-cerrar-historico-diario]")?.addEventListener("click", cerrar);
   $("#menu-racha-diaria")?.addEventListener("click", (e) => {
     e.stopPropagation();
-    abrirHistoricoDiario();
+    abrirModalHistoricoDiario();
   });
 }
 
-let reportarTipoSeleccionado = null;
+let tipoReporteSeleccionado = null;
 
-function abrirModalReportar() {
+function abrirModalReportarPalabra() {
   if (!panelPalabraActual) return;
-  reportarTipoSeleccionado = null;
+  tipoReporteSeleccionado = null;
   $("#modal-reportar-subtitulo").textContent = panelPalabraActual;
   $("#modal-reportar-comentario").value = "";
   $("#modal-reportar-opciones")
@@ -339,7 +327,7 @@ function abrirModalReportar() {
   $("#modal-reportar").classList.remove("oculto");
 }
 
-function registrarModalReportar() {
+function registrarEventosModalReportar() {
   const modal = $("#modal-reportar");
   if (!modal) return;
   const cerrar = () => modal.classList.add("oculto");
@@ -351,7 +339,7 @@ function registrarModalReportar() {
     .querySelectorAll(".menu-modo-opcion")
     .forEach((btn) => {
       btn.addEventListener("click", () => {
-        reportarTipoSeleccionado = btn.dataset.tipoReporte;
+        tipoReporteSeleccionado = btn.dataset.tipoReporte;
         $("#modal-reportar-opciones")
           .querySelectorAll(".menu-modo-opcion")
           .forEach((b) => b.classList.toggle("activo", b === btn));
@@ -360,9 +348,9 @@ function registrarModalReportar() {
     });
 
   $("#modal-reportar-enviar")?.addEventListener("click", () => {
-    if (!reportarTipoSeleccionado || !panelPalabraActual) return;
+    if (!tipoReporteSeleccionado || !panelPalabraActual) return;
     const comentario = $("#modal-reportar-comentario").value.trim().slice(0, 100);
-    Goatcounter.palabraReportada(panelPalabraActual, reportarTipoSeleccionado, comentario);
+    Goatcounter.palabraReportada(panelPalabraActual, tipoReporteSeleccionado, comentario);
     cerrar();
     mensaje("¡Gracias por tu reporte!");
   });
@@ -372,7 +360,7 @@ function actualizarMenuModos() {
   const fechaEl = $("#menu-fecha-diario");
   if (fechaEl) fechaEl.textContent = Fechas.formato(Fechas.hoy());
   document.querySelectorAll(".menu-modo-opcion").forEach((btn) => {
-    btn.classList.toggle("activo", btn.dataset.modo === modo);
+    btn.classList.toggle("activo", btn.dataset.modo === modoJuego);
   });
   const racha = Saves.obtenerRachaDiaria();
   const rachaWrap = $("#menu-racha-diaria");
@@ -381,67 +369,59 @@ function actualizarMenuModos() {
     rachaWrap.classList.toggle("oculto", racha <= 0);
     rachaValorEl.textContent = racha;
   }
-  actualizarUmbralInfo();
-  actualizarRaeInfo();
-  actualizarHintInfo();
-  actualizarTemaInfo();
+  actualizarInfoUmbral();
+  actualizarInfoRae();
+  actualizarInfoPistas();
+  actualizarInfoTema();
 }
 
 
 /** Recalcula vecinosOrigen/vecinosDestino para el par origen/destino vigente */
-function actualizarVecinosObjetivos() {
+function actualizarVecinosDeObjetivos() {
   vecinosOrigen = SimilitudService.vecinosParaPistas(origen);
   vecinosDestino = SimilitudService.vecinosParaPistas(destino);
 }
 
-function componenteConecta(aristas) {
-  const find = Tablero.agruparConectadas(aristas);
-  return find(origen) === find(destino);
-}
-
-function caminoMasCorto(aristas) {
-  const adj = {};
-  [...Tablero.getPalabras()].forEach((n) => (adj[n] = []));
-  aristas.forEach((c) => {
-    adj[c.a].push(c.b);
-    adj[c.b].push(c.a);
+function obtenerCaminoMasCorto(aristas) {
+  const adyacencia = {};
+  [...Tablero.getPalabras()].forEach((palabra) => (adyacencia[palabra] = []));
+  aristas.forEach((arista) => {
+    adyacencia[arista.a].push(arista.b);
+    adyacencia[arista.b].push(arista.a);
   });
 
-  const prev = { [origen]: null };
+  const predecesor = { [origen]: null };
   const cola = [origen];
   for (let i = 0; i < cola.length; i++) {
-    const u = cola[i];
-    if (u === destino) break;
-    for (const v of adj[u] || []) {
-      if (!(v in prev)) {
-        prev[v] = u;
-        cola.push(v);
+    const actual = cola[i];
+    if (actual === destino) break;
+    for (const vecino of adyacencia[actual] || []) {
+      if (!(vecino in predecesor)) {
+        predecesor[vecino] = actual;
+        cola.push(vecino);
       }
     }
   }
-  if (!(destino in prev)) return [];
+  if (!(destino in predecesor)) return [];
 
-  const nodos = [];
-  for (let x = destino; x != null; x = prev[x]) nodos.push(x);
-  nodos.reverse();
-  return nodos;
+  const camino = [];
+  for (let nodo = destino; nodo != null; nodo = predecesor[nodo]) camino.push(nodo);
+  camino.reverse();
+  return camino;
 }
 
-function actualizarEstado(aristas) {
-  const conecta = componenteConecta(aristas);
+function actualizarEstadoConexion(aristas) {
+  const componenteDe = Tablero.agruparConectadas(aristas);
+  const conectados = componenteDe(origen) === componenteDe(destino);
   const flecha = $("#estado-flecha");
-  flecha.classList.toggle("ok", conecta);
-  flecha.firstElementChild.className = conecta ? "bi bi-arrow-right" : "bi bi-three-dots";
+  flecha.classList.toggle("ok", conectados);
+  flecha.firstElementChild.className = conectados ? "bi bi-arrow-right" : "bi bi-three-dots";
 
-  if (conecta && !ganado) ganar(aristas);
-  else if (!conecta) {
+  if (conectados && !partidaGanada) ganarPartida(aristas);
+  else if (!conectados) {
     Tablero.marcarRuta();
   }
 }
-
-const PUNTOS_VERDE = 1;
-const PUNTOS_GRIS = 2;
-const PUNTOS_ROJO = 3;
 
 /**
  * Puntaje al estilo golf (menos es mejor):
@@ -450,16 +430,16 @@ const PUNTOS_ROJO = 3;
  *  x3 por cada palabra suelta, sin conectar a la red principal (roja)
  */
 function calcularPuntaje(aristas, ruta) {
-  const find = Tablero.agruparConectadas(aristas);
-  const compPrincipal = find(origen);
-  const rutaSet = new Set(ruta);
+  const componenteDe = Tablero.agruparConectadas(aristas);
+  const componentePrincipal = componenteDe(origen);
+  const palabrasEnRuta = new Set(ruta);
   let verdes = 0;
   let grises = 0;
   let sueltos = 0;
-  Tablero.getPalabras().forEach((id) => {
-    if (id === origen || id === destino) return;
-    if (rutaSet.has(id)) verdes++;
-    else if (find(id) === compPrincipal) grises++;
+  Tablero.getPalabras().forEach((palabra) => {
+    if (palabra === origen || palabra === destino) return;
+    if (palabrasEnRuta.has(palabra)) verdes++;
+    else if (componenteDe(palabra) === componentePrincipal) grises++;
     else sueltos++;
   });
   const puntaje = verdes * PUNTOS_VERDE + grises * PUNTOS_GRIS + sueltos * PUNTOS_ROJO;
@@ -472,123 +452,115 @@ function calcularPuntaje(aristas, ruta) {
  *  - bueno: la ruta más corta pesa más que las palabras conectadas fuera de ruta
  *  - regular: cualquier otro caso intermedio
  */
-function colorPuntaje({ verdes, grises, sueltos }) {
+function clasificarCalidadPuntaje({ verdes, grises, sueltos }) {
   if (verdes === 0 && grises === 0 && sueltos === 0) return "puntaje-bueno";
   if (grises + sueltos > verdes * 2) return "puntaje-malo";
   if (verdes + 1 >= (grises + sueltos)) return "puntaje-bueno";
   return "puntaje-regular";
 }
 
-function mostrarResultado({ verdes, grises, sueltos, puntaje }) {
+function mostrarResultadoFinal({ verdes, grises, sueltos, puntaje }, calidad) {
   ultimoPuntaje = puntaje;
-  ultimaCalidad = colorPuntaje({ verdes, grises, sueltos });
+  ultimaCalidadPuntaje = calidad;
   const total = $("#puntaje-total");
   total.textContent = puntaje;
   total.classList.remove("puntaje-bueno", "puntaje-regular", "puntaje-malo");
-  total.classList.add(ultimaCalidad);
+  total.classList.add(calidad);
   $("#puntaje-verdes-cant").textContent = verdes;
   $("#puntaje-verdes-total").textContent = verdes * PUNTOS_VERDE;
   $("#puntaje-grises-cant").textContent = grises;
   $("#puntaje-grises-total").textContent = grises * PUNTOS_GRIS;
   $("#puntaje-sueltos-cant").textContent = sueltos;
   $("#puntaje-sueltos-total").textContent = sueltos * PUNTOS_ROJO;
-  if (modo !== MODO_DIARIO) $("#estadistica-diaria")?.classList.add("oculto");
-  if (!restaurando) $("#modal-final").classList.remove("oculto");
+  if (modoJuego !== MODO_DIARIO) $("#estadistica-diaria")?.classList.add("oculto");
+  if (!restaurandoPalabras) $("#modal-final").classList.remove("oculto");
 }
 
 function dibujarGraficoHistorico(entradas, canvas = $("#grafico-historico")) {
   if (!canvas) return;
   const dpr = window.devicePixelRatio || 1;
-  const cssW = canvas.clientWidth || 360;
-  const cssH = canvas.clientHeight || 120;
-  canvas.width = Math.round(cssW * dpr);
-  canvas.height = Math.round(cssH * dpr);
+  const anchoCss = canvas.clientWidth || 360;
+  const altoCss = canvas.clientHeight || 120;
+  canvas.width = Math.round(anchoCss * dpr);
+  canvas.height = Math.round(altoCss * dpr);
   const ctx = canvas.getContext("2d");
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, cssW, cssH);
+  ctx.clearRect(0, 0, anchoCss, altoCss);
 
-  const c = Theme.colores();
-  const padL = 28;
-  const padR = 8;
-  const padT = 14;
-  const padB = 22;
-  const w = cssW - padL - padR;
-  const h = cssH - padT - padB;
+  const colores = Theme.colores();
+  const margenIzq = 28;
+  const margenDer = 8;
+  const margenSup = 14;
+  const margenInf = 22;
+  const anchoUtil = anchoCss - margenIzq - margenDer;
+  const altoUtil = altoCss - margenSup - margenInf;
 
-  if (!entradas.length) {
-    ctx.fillStyle = c.textoDebil;
-    ctx.font = "12px system-ui, sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("Sin datos aún", cssW / 2, cssH / 2);
-    return;
-  }
-
-  const puntajesJugados = entradas.filter((e) => e.jugado).map((e) => e.puntaje);
-  const maxY = Math.max(...puntajesJugados, 1);
+  const puntajesJugados = entradas.filter((entrada) => entrada.jugado).map((entrada) => entrada.puntaje);
+  const puntajeMaximo = Math.max(...puntajesJugados, 1);
   const hoy = Fechas.hoy();
-  const n = entradas.length;
-  const gap = Math.max(2, (w / n) * 0.2);
-  const barW = Math.max(2, (w - gap * (n - 1)) / n);
-  const altoFalta = 4;
-  const baseline = padT + h - altoFalta;
+  const cantidad = entradas.length;
+  const espacioEntreBarras = Math.max(2, (anchoUtil / cantidad) * 0.2);
+  const anchoBarra = Math.max(2, (anchoUtil - espacioEntreBarras * (cantidad - 1)) / cantidad);
+  const altoSinJugar = 4;
+  const lineaBase = margenSup + altoUtil - altoSinJugar;
 
   // Mayor puntaje arriba (eje Y estándar); días sin jugar = -1 debajo del 0
-  const yDe = (p) => padT + (1 - p / maxY) * (h - altoFalta);
-  const xBarra = (i) => padL + i * (barW + gap);
-  const xCentro = (i) => xBarra(i) + barW / 2;
+  const yDePuntaje = (puntaje) => margenSup + (1 - puntaje / puntajeMaximo) * (altoUtil - altoSinJugar);
+  const xDeBarra = (indice) => margenIzq + indice * (anchoBarra + espacioEntreBarras);
+  const xCentroBarra = (indice) => xDeBarra(indice) + anchoBarra / 2;
 
-  ctx.strokeStyle = c.borde;
+  ctx.strokeStyle = colores.borde;
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(padL, padT);
-  ctx.lineTo(padL, baseline);
-  ctx.lineTo(padL + w, baseline);
+  ctx.moveTo(margenIzq, margenSup);
+  ctx.lineTo(margenIzq, lineaBase);
+  ctx.lineTo(margenIzq + anchoUtil, lineaBase);
   ctx.stroke();
 
-  ctx.fillStyle = c.textoDebil;
+  ctx.fillStyle = colores.textoDebil;
   ctx.font = "10px system-ui, sans-serif";
   ctx.textAlign = "right";
-  ctx.fillText(String(maxY), padL - 4, padT + 3);
-  ctx.fillText("0", padL - 4, baseline + 3);
+  ctx.fillText(String(puntajeMaximo), margenIzq - 4, margenSup + 3);
+  ctx.fillText("0", margenIzq - 4, lineaBase + 3);
 
-  entradas.forEach((e, i) => {
-    const x = xBarra(i);
-    if (!e.jugado || e.puntaje < 0) {
+  entradas.forEach((entrada, indice) => {
+    const x = xDeBarra(indice);
+    if (!entrada.jugado || entrada.puntaje < 0) {
       ctx.save();
-      ctx.strokeStyle = c.acento;
+      ctx.strokeStyle = colores.acento;
       ctx.lineWidth = 1;
-      ctx.strokeRect(x + 0.5, baseline + 0.5, barW - 1, altoFalta - 1);
+      ctx.strokeRect(x + 0.5, lineaBase + 0.5, anchoBarra - 1, altoSinJugar - 1);
       ctx.beginPath();
-      ctx.rect(x, baseline, barW, altoFalta);
+      ctx.rect(x, lineaBase, anchoBarra, altoSinJugar);
       ctx.clip();
       ctx.beginPath();
-      for (let raya = -altoFalta; raya < barW; raya += 6) {
-        ctx.moveTo(x + raya, baseline + altoFalta);
-        ctx.lineTo(x + raya + altoFalta, baseline);
+      for (let raya = -altoSinJugar; raya < anchoBarra; raya += 6) {
+        ctx.moveTo(x + raya, lineaBase + altoSinJugar);
+        ctx.lineTo(x + raya + altoSinJugar, lineaBase);
       }
       ctx.stroke();
       ctx.restore();
       return;
     }
-    const y = yDe(e.puntaje);
-    const barH = Math.max(1, baseline - y);
-    ctx.fillStyle = e.fecha === hoy ? c.exito : c.bordeFuerte;
-    ctx.fillRect(x, y, barW, barH);
+    const y = yDePuntaje(entrada.puntaje);
+    const altoBarra = Math.max(1, lineaBase - y);
+    ctx.fillStyle = entrada.fecha === hoy ? colores.exito : colores.bordeFuerte;
+    ctx.fillRect(x, y, anchoBarra, altoBarra);
   });
 
-  ctx.fillStyle = c.textoDebil;
+  ctx.fillStyle = colores.textoDebil;
   ctx.font = "10px system-ui, sans-serif";
   ctx.textAlign = "center";
-  ctx.fillText(Fechas.formato(entradas[0].fecha, "dm"), xCentro(0), cssH - 4);
-  if (n > 2) {
-    const mid = (n / 2) | 0;
-    ctx.fillText(Fechas.formato(entradas[mid].fecha, "dm"), xCentro(mid), cssH - 4);
+  ctx.fillText(Fechas.formato(entradas[0].fecha, "dm"), xCentroBarra(0), altoCss - 4);
+  if (cantidad > 2) {
+    const indiceMedio = (cantidad / 2) | 0;
+    ctx.fillText(Fechas.formato(entradas[indiceMedio].fecha, "dm"), xCentroBarra(indiceMedio), altoCss - 4);
   }
-  ctx.fillText(Fechas.formato(entradas[n - 1].fecha, "dm"), xCentro(n - 1), cssH - 4);
+  ctx.fillText(Fechas.formato(entradas[cantidad - 1].fecha, "dm"), xCentroBarra(cantidad - 1), altoCss - 4);
 }
 
 function renderizarEstadisticaDiaria() {
-  if (modo !== MODO_DIARIO) {
+  if (modoJuego !== MODO_DIARIO) {
     $("#estadistica-diaria")?.classList.add("oculto");
     return;
   }
@@ -618,191 +590,185 @@ function renderizarEstadisticaDiaria() {
   });
 }
 
-function actualizarEstadisticaDiaria(puntaje) {
-  Saves.guardarPuntajeDiario(Fechas.hoy(), puntaje);
-  Saves.registrarRachaDiaria();
-  if (restaurando) return;
-  renderizarEstadisticaDiaria();
-}
-
-function ganar(aristas) {
-  ganado = true;
-  const ruta = caminoMasCorto(aristas);
+function ganarPartida(aristas) {
+  partidaGanada = true;
+  const ruta = obtenerCaminoMasCorto(aristas);
   Tablero.marcarRuta(ruta);
   const resultado = calcularPuntaje(aristas, ruta);
-  mensaje(`puntaje: ${resultado.puntaje}`, `${colorPuntaje(resultado)} clicable`);
-  bloquearEntrada(true);
-  mostrarResultado(resultado);
-  if (modo === MODO_DIARIO) actualizarEstadisticaDiaria(resultado.puntaje);
+  const calidad = clasificarCalidadPuntaje(resultado);
+  mensaje(`puntaje: ${resultado.puntaje}`, `${calidad} clicable`);
+  bloquearCampoEntrada(true);
+  mostrarResultadoFinal(resultado, calidad);
+  if (modoJuego === MODO_DIARIO) {
+    Saves.guardarPuntajeDiario(Fechas.hoy(), resultado.puntaje);
+    Saves.registrarRachaDiaria();
+    if (!restaurandoPalabras) renderizarEstadisticaDiaria();
+  }
 }
 
-async function anadirPalabra(cruda) {
-  if (ganado) return;
-  const p = norm(cruda || "");
-  if (!p) return;
-  if (Tablero.tiene(p)) return mensaje(`“${p}” ya está en el tablero`, "error");
+async function agregarPalabra(textoIngresado) {
+  if (partidaGanada) return;
+  const palabra = normalizarTexto(textoIngresado || "");
+  if (!palabra) return;
+  if (Tablero.tiene(palabra)) return mensaje(`“${palabra}” ya está en el tablero`, "error");
 
-  if (!SimilitudService.existeEnDiccionario(p)) {
-    Goatcounter.palabraRechazada(p);
-    return mensajeSugerencia(p, SimilitudService.sugerenciasOrtograficas(p));
+  if (!SimilitudService.existeEnDiccionario(palabra)) {
+    Goatcounter.palabraRechazada(palabra);
+    return mostrarMensajeSugerencias(palabra, SimilitudService.sugerenciasOrtograficas(palabra));
   }
 
-  if (modo === MODO_LIBRE && (!origen || !destino)) {
-    await definirPalabraLibre(p);
+  if (modoJuego === MODO_LIBRE && (!origen || !destino)) {
+    await definirPalabraModoLibre(palabra);
     return;
   }
 
-  try {
-    SimilitudService.calcularSimilitudesContra(p, Tablero.getPalabras());
-  } catch (e) {
-    return mensaje("error al calcular la similitud", "error");
-  }
-  await colocar(p);
+  await colocarPalabraEnTablero(palabra);
 }
 
-async function colocar(p) {
+async function colocarPalabraEnTablero(palabra) {
   $("#panel").classList.add("oculto");
-  Tablero.insertar(p);
+  Tablero.insertar(palabra);
   await Tablero.reconstruir();
   Tablero.posicionar();
   guardarEstadoDiario();
 
-  if (ganado) return;
-  if (!restaurando) mensaje("");
+  if (partidaGanada) return;
+  if (!restaurandoPalabras) mensaje("");
 }
 
-const PISTAS_CANT = 5;
 let panelPalabraActual = null;
-let panelMostrandoPistas = false;
+let panelMuestraPistas = false;
 
-function renderizarListaTablero(palabra) {
+function renderizarListaSimilitudesTablero(palabra) {
   const otras = [...Tablero.getPalabras()]
-    .filter((n) => n !== palabra)
-    .map((n) => ({ n, s: SimilitudService.obtenerSimilitud(n, palabra) }))
-    .sort((a, b) => b.s - a.s);
+    .filter((otra) => otra !== palabra)
+    .map((otra) => ({
+      palabra: otra,
+      similitud: SimilitudService.obtenerSimilitud(otra, palabra),
+    }))
+    .sort((a, b) => b.similitud - a.similitud);
   $("#panel-lista").innerHTML = otras
     .map(
-      (o) =>
-        `<li class="${o.s > umbralActual() ? "conecta" : ""}"><span>${o.n}</span><span>${o.s}%</span></li>`
+      (item) =>
+        `<li class="${item.similitud > umbralSimilitudActual() ? "conecta" : ""}"><span>${item.palabra}</span><span>${item.similitud}%</span></li>`
     )
     .join("");
 }
 
-function renderizarListaPistas(palabra) {
-  const vecinos = palabra === origen ? vecinosOrigen : vecinosDestino;
-  $("#panel-lista").innerHTML = vecinos
-    .slice(0, PISTAS_CANT)
-    .map(
-      (v) =>
-        `<li class="${v.sim > umbralActual() ? "conecta" : ""}"><span>${v.palabra}</span><span>${v.sim}%</span></li>`
-    )
-    .join("");
-}
-
-function renderizarPanelLista() {
+function renderizarListaDelPanel() {
   if (!panelPalabraActual) return;
-  if (panelMostrandoPistas) renderizarListaPistas(panelPalabraActual);
-  else renderizarListaTablero(panelPalabraActual);
+  if (panelMuestraPistas) {
+    const vecinos = panelPalabraActual === origen ? vecinosOrigen : vecinosDestino;
+    $("#panel-lista").innerHTML = vecinos
+      .slice(0, CANTIDAD_PISTAS_PANEL)
+      .map(
+        (v) =>
+          `<li class="${v.sim > umbralSimilitudActual() ? "conecta" : ""}"><span>${v.palabra}</span><span>${v.sim}%</span></li>`
+      )
+      .join("");
+    return;
+  }
+  renderizarListaSimilitudesTablero(panelPalabraActual);
 }
 
-async function mostrarPanel(palabra) {
-  mensaje("calculando…");
-  for (const n of Tablero.getPalabras()) {
-    if (n !== palabra) await SimilitudService.asegurarSimilitud(palabra, n);
+async function mostrarPanelPalabra(palabra) {
+  for (const otra of Tablero.getPalabras()) {
+    if (otra !== palabra) await SimilitudService.asegurarSimilitud(palabra, otra);
   }
-  mensaje("");
 
   panelPalabraActual = palabra;
-  panelMostrandoPistas = false;
+  panelMuestraPistas = false;
 
   $("#panel").classList.remove("oculto");
   $("#panel-titulo").textContent = palabra;
-  const rae = $("#panel-rae");
-  rae.href = `https://dle.rae.es/${encodeURIComponent(palabra)}`;
-  rae.title = `Ver “${palabra}” en la RAE`;
-  rae.setAttribute("aria-label", `Ver definición de “${palabra}” en la RAE`);
+  const enlaceRae = $("#panel-rae");
+  enlaceRae.href = `https://dle.rae.es/${encodeURIComponent(palabra)}`;
+  enlaceRae.title = `Ver “${palabra}” en la RAE`;
+  enlaceRae.setAttribute("aria-label", `Ver definición de “${palabra}” en la RAE`);
 
-  actualizarVisibilidadHint();
-  renderizarPanelLista();
+  actualizarVisibilidadBotonPista();
+  renderizarListaDelPanel();
 }
 
 /** Muestra/oculta el botón de pista según el switch de ajustes y si la palabra abierta es origen/destino. */
-function actualizarVisibilidadHint() {
-  const hint = $("#panel-hint");
-  if (!hint) return;
+function actualizarVisibilidadBotonPista() {
+  const botonPista = $("#panel-hint");
+  if (!botonPista) return;
   const esObjetivo = panelPalabraActual === origen || panelPalabraActual === destino;
-  const visible = hintVisible && esObjetivo;
-  hint.classList.toggle("oculto", !visible);
-  if (!visible && panelMostrandoPistas) {
-    panelMostrandoPistas = false;
-    renderizarPanelLista();
+  const visible = pistasVisibles && esObjetivo;
+  botonPista.classList.toggle("oculto", !visible);
+  if (!visible && panelMuestraPistas) {
+    panelMuestraPistas = false;
+    renderizarListaDelPanel();
   }
-  hint.classList.toggle("activo", visible && panelMostrandoPistas);
-  hint.setAttribute("aria-pressed", String(visible && panelMostrandoPistas));
+  botonPista.classList.toggle("activo", visible && panelMuestraPistas);
+  botonPista.setAttribute("aria-pressed", String(visible && panelMuestraPistas));
 }
 
-function mensajeSugerencia(palabra, sugerencias) {
-  const el = $("#mensaje");
-  el.className = "mensaje error";
-  el.innerHTML = `“${palabra}” no se encuentra en el diccionario.<br>`;
+function mostrarMensajeSugerencias(palabra, sugerencias) {
+  const contenedor = $("#mensaje");
+  contenedor.className = "mensaje error";
+  contenedor.innerHTML = `“${palabra}” no se encuentra en el diccionario.<br>`;
   if (sugerencias.length) {
-    el.innerHTML += " ¿Quisiste decir ";
-    sugerencias.forEach((s, i) => {
+    contenedor.innerHTML += " ¿Quisiste decir ";
+    sugerencias.forEach((sugerencia, indice) => {
       const chip = document.createElement("button");
       chip.type = "button";
       chip.className = "sugerencia";
-      chip.textContent = s;
-      chip.addEventListener("mousedown", (e) => e.preventDefault());
+      chip.textContent = sugerencia;
+      chip.addEventListener("mousedown", (evento) => evento.preventDefault());
       chip.addEventListener("click", async () => {
-        await anadirPalabra(s);
+        await agregarPalabra(sugerencia);
         $("#entrada").focus();
       });
-      el.appendChild(chip);
-      if (i < sugerencias.length - 1) el.appendChild(document.createTextNode(", "));
+      contenedor.appendChild(chip);
+      if (indice < sugerencias.length - 1) {
+        contenedor.appendChild(document.createTextNode(", "));
+      }
     });
-    el.appendChild(document.createTextNode("?"));
+    contenedor.appendChild(document.createTextNode("?"));
   }
 }
 
-function mensaje(txt, tipo = "") {
-  const el = $("#mensaje");
-  el.textContent = txt;
-  el.className = "mensaje" + (tipo ? " " + tipo : "");
+function mensaje(texto, tipo = "") {
+  const contenedor = $("#mensaje");
+  contenedor.textContent = texto;
+  contenedor.className = "mensaje" + (tipo ? " " + tipo : "");
 }
 
-function leerParamsPractica() {
+function leerParObjetivoDesdeUrl() {
   const params = new URLSearchParams(location.search);
-  const o = norm(params.get("origen") || "");
-  const d = norm(params.get("destino") || "");
-  if (!o || !d || o === d) return null;
-  if (!SimilitudService.existeEnDiccionario(o) || !SimilitudService.existeEnDiccionario(d)) return null;
-  return [o, d];
-}
-
-function construirUrlJuego() {
-  const u = new URL(location.href);
-  u.hash = "";
-  if ((modo === MODO_PRACTICA || modo === MODO_LIBRE) && origen && destino) {
-    u.searchParams.set("origen", origen);
-    u.searchParams.set("destino", destino);
-  } else {
-    u.search = "";
+  const palabraOrigen = normalizarTexto(params.get("origen") || "");
+  const palabraDestino = normalizarTexto(params.get("destino") || "");
+  if (!palabraOrigen || !palabraDestino || palabraOrigen === palabraDestino) return null;
+  if (
+    !SimilitudService.existeEnDiccionario(palabraOrigen) ||
+    !SimilitudService.existeEnDiccionario(palabraDestino)
+  ) {
+    return null;
   }
-  return u;
+  return [palabraOrigen, palabraDestino];
 }
 
-function actualizarUrl() {
-  const u = construirUrlJuego();
-  const destinoUrl = `${u.pathname}${u.search}`;
-  history.replaceState(null, "", destinoUrl || "/");
+function construirUrlActualDelJuego() {
+  const url = new URL(location.href);
+  url.hash = "";
+  if ((modoJuego === MODO_PRACTICA || modoJuego === MODO_LIBRE) && origen && destino) {
+    url.searchParams.set("origen", origen);
+    url.searchParams.set("destino", destino);
+  } else {
+    url.search = "";
+  }
+  return url;
 }
 
-function urlJuego() {
-  const u = construirUrlJuego();
-  return u.href.replace(/\/$/, "") || u.origin;
+function actualizarUrlDelNavegador() {
+  const url = construirUrlActualDelJuego();
+  const rutaConQuery = `${url.pathname}${url.search}`;
+  history.replaceState(null, "", rutaConQuery || "/");
 }
 
-function registrarViewport() {
+function registrarAjustesViewport() {
   const entrada = $("#entrada");
   const contenedor = $("#grafo");
   const esTactil = matchMedia("(pointer: coarse)").matches;
@@ -876,7 +842,7 @@ function registrarViewport() {
   }
 }
 
-function registrarMenuModos() {
+function registrarEventosMenuModos() {
   const modal = $("#menu-modos");
   const abrir = () => {
     actualizarMenuModos();
@@ -895,8 +861,8 @@ function registrarMenuModos() {
       if (elegido === MODO_PRACTICA) {
         await nuevoJuego(false);
       } else if (elegido === MODO_LIBRE) {
-        if (modo !== MODO_LIBRE) await nuevoJuegoLibre();
-      } else if (elegido !== modo) {
+        if (modoJuego !== MODO_LIBRE) await nuevoJuegoLibre();
+      } else if (elegido !== modoJuego) {
         await nuevoJuego(true);
       }
     });
@@ -905,67 +871,70 @@ function registrarMenuModos() {
   const modalConfirmar = $("#modal-confirmar-dificultad");
   const switchDificultad = $("#switch-dificultad");
 
-  const aceptarCambioDificultad = async () => {
-    if (pendienteDificil == null) return;
-    dificil = pendienteDificil;
-    pendienteDificil = null;
+  const aceptarCambioModoDificil = async () => {
+    if (modoDificilPendiente == null) return;
+    modoDificil = modoDificilPendiente;
+    modoDificilPendiente = null;
     modalConfirmar.classList.add("oculto");
-    Saves.guardarBooleano(CLAVE_DIFICULTAD, dificil);
-    actualizarUmbralInfo();
-    if (SimilitudService.datosCargados && origen && destino) await limpiarTablero();
+    Saves.guardarBooleano(CLAVE_DIFICULTAD, modoDificil);
+    actualizarInfoUmbral();
+    if (SimilitudService.datosCargados && origen && destino) await limpiarPalabrasDelTablero();
   };
 
   switchDificultad.addEventListener("change", (e) => {
-    pendienteDificil = e.target.checked;
+    modoDificilPendiente = e.target.checked;
+    const desde = modoDificilPendiente ? UMBRAL_NORMAL : UMBRAL_DIFICIL;
+    const hacia = modoDificilPendiente ? UMBRAL_DIFICIL : UMBRAL_NORMAL;
+    const cambio = modoDificilPendiente ? "aumentará" : "disminuirá";
     $("#modal-confirmar-dificultad-texto").textContent =
-      textoConfirmarDificultad(pendienteDificil);
+      `La similitud que tienen que tener 2 palabras para enlazarse ${cambio} (${desde}% → ${hacia}%) y se limpiará el tablero. ¿Continuar?`;
     modalConfirmar.classList.remove("oculto");
   });
 
   $("#modal-confirmar-dificultad-aceptar").addEventListener("click", () => {
-    void aceptarCambioDificultad();
+    void aceptarCambioModoDificil();
   });
-  $("#modal-confirmar-dificultad-cancelar").addEventListener("click", cancelarCambioDificultad);
-  modalConfirmar.querySelector("[data-cerrar-confirmar-dificultad]").addEventListener("click", cancelarCambioDificultad);
+  $("#modal-confirmar-dificultad-cancelar").addEventListener("click", cancelarCambioModoDificil);
+  modalConfirmar.querySelector("[data-cerrar-confirmar-dificultad]").addEventListener("click", cancelarCambioModoDificil);
 
   $("#switch-rae").addEventListener("change", (e) => {
     raeVisible = e.target.checked;
     Saves.guardarBooleano(CLAVE_RAE, raeVisible);
-    actualizarRaeInfo();
+    actualizarInfoRae();
   });
 
   $("#switch-hint").addEventListener("change", (e) => {
-    hintVisible = e.target.checked;
-    Saves.guardarBooleano(CLAVE_HINT, hintVisible);
-    actualizarHintInfo();
+    pistasVisibles = e.target.checked;
+    Saves.guardarBooleano(CLAVE_PISTAS, pistasVisibles);
+    actualizarInfoPistas();
   });
 
   $("#switch-tema").addEventListener("change", (e) => {
     temaClaro = e.target.checked;
     Saves.guardarBooleano(CLAVE_TEMA, temaClaro);
     Theme.aplicar(temaClaro);
-    actualizarTemaInfo();
+    actualizarInfoTema();
     Tablero.aplicarEstilos();
     Share.aplicarEstilos();
   });
 }
 
-function registrarEventos() {
-  registrarViewport();
+function registrarEventosInterfaz() {
+  registrarAjustesViewport();
 
   $("#form-palabra").addEventListener("submit", async (e) => {
     e.preventDefault();
     const entrada = $("#entrada");
     const valor = entrada.value;
     entrada.value = "";
-    await anadirPalabra(valor);
+    await agregarPalabra(valor);
   });
-  registrarMenuModos();
-  registrarModalHistoricoDiario();
-  registrarModalReportar();
+  registrarEventosMenuModos();
+  registrarEventosModalHistoricoDiario();
+  registrarEventosModalReportar();
   $("#btn-compartir").addEventListener("click", () => void Share.compartir());
   $("#mensaje").addEventListener("click", () => {
-    if (!ganado) return;
+    if (!partidaGanada) return;
     renderizarEstadisticaDiaria();
     $("#modal-final").classList.remove("oculto");
   });
@@ -973,11 +942,11 @@ function registrarEventos() {
     $("#panel").classList.add("oculto")
   );
   $("#panel-hint").addEventListener("click", () => {
-    panelMostrandoPistas = !panelMostrandoPistas;
-    actualizarVisibilidadHint();
-    renderizarPanelLista();
+    panelMuestraPistas = !panelMuestraPistas;
+    actualizarVisibilidadBotonPista();
+    renderizarListaDelPanel();
   });
-  $("#panel-reportar")?.addEventListener("click", () => abrirModalReportar());
+  $("#panel-reportar")?.addEventListener("click", () => abrirModalReportarPalabra());
 
   const ayuda = $("#ayuda");
   const menuModos = $("#menu-modos");
@@ -1030,9 +999,9 @@ function registrarEventos() {
     btn.addEventListener("click", () => mostrarAyudaSeccion(btn.dataset.ayuda));
   });
 
-  if (!ayudaVista) {
-    ayudaVista = true;
-    Saves.guardarBooleano(CLAVE_AYUDA_VISTA, ayudaVista);
+  if (!ayudaYaMostrada) {
+    ayudaYaMostrada = true;
+    Saves.guardarBooleano(CLAVE_AYUDA_VISTA, ayudaYaMostrada);
     abrirAyuda("jugar");
   }
 
@@ -1042,7 +1011,7 @@ function registrarEventos() {
 
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
-    if (!modalConfirmarDificultad.classList.contains("oculto")) cancelarCambioDificultad();
+    if (!modalConfirmarDificultad.classList.contains("oculto")) cancelarCambioModoDificil();
     else if (!menuModos.classList.contains("oculto")) cerrarMenuModos();
     else if (!ayuda.classList.contains("oculto")) {
       if (!ayudaDetalle.classList.contains("oculto")) mostrarAyudaIndice();
@@ -1052,4 +1021,4 @@ function registrarEventos() {
   });
 }
 
-iniciar();
+iniciarAplicacion();

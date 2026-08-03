@@ -1,7 +1,6 @@
 // Embeddings, diccionario y cálculo de similitudes (coseno %)
 
 // Constantes
-const SIMILITUD_OBJETIVO_MINIMA = 0;
 const SIMILITUD_OBJETIVO_MAXIMA = 5;
 const MINIMO_PALABRAS_PUENTE = 5;
 const UMBRAL_SIMILITUD_PUENTES = 50;
@@ -64,14 +63,6 @@ function distanciaLevenshtein(textoA, textoB, distanciaMaxima = 2) {
 export class SimilitudService {
   static get datosCargados() {
     return datosCargados;
-  }
-
-  static get palabrasDelPool() {
-    return palabrasDelPool;
-  }
-
-  static get MINIMO_PALABRAS_PUENTE() {
-    return MINIMO_PALABRAS_PUENTE;
   }
 
   /** Carga vocabulario, pool de palabras frecuentes y vectores cuantizados. */
@@ -209,22 +200,6 @@ export class SimilitudService {
     }
   }
 
-  /** Calcula y cachea la similitud de `palabra` contra cada elemento de `otrasPalabras` */
-  static calcularSimilitudesContra(palabra, otrasPalabras) {
-    const embeddingPalabra = SimilitudService.obtenerEmbedding(palabra);
-    for (const otra of otrasPalabras) {
-      if (otra === palabra) continue;
-      SimilitudService.guardarSimilitud(
-        palabra,
-        otra,
-        SimilitudService.similitudPorcentaje(
-          embeddingPalabra,
-          SimilitudService.obtenerEmbedding(otra)
-        )
-      );
-    }
-  }
-
   static contarVecinosCercanos(palabra, minimoNecesario, umbral = UMBRAL_SIMILITUD_PUENTES) {
     const embeddingPalabra = SimilitudService.obtenerEmbedding(palabra);
     let cantidad = 0;
@@ -262,7 +237,7 @@ export class SimilitudService {
       const destino = palabrasDelPool[(rng() * palabrasDelPool.length) | 0];
       if (origen === destino) continue;
       const similitud = await SimilitudService.asegurarSimilitud(origen, destino);
-      if (similitud < SIMILITUD_OBJETIVO_MINIMA || similitud > SIMILITUD_OBJETIVO_MAXIMA) continue;
+      if (similitud > SIMILITUD_OBJETIVO_MAXIMA) continue;
       if (SimilitudService.tieneSuficientesPuentes(origen, destino)) return [origen, destino];
     }
     return [palabrasDelPool[0], palabrasDelPool[palabrasDelPool.length - 1]];

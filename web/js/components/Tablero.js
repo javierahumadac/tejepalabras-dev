@@ -111,16 +111,11 @@ function getEstilos() {
         width: "data(peso)",
         "line-color": colores.borde,
         "curve-style": "straight",
-        "font-size": 9,
-        color: colores.textoDebil,
-        "text-background-color": colores.fondo,
-        "text-background-opacity": 1,
-        "text-background-padding": 2,
       },
     },
     { // Arista de la ruta ganadora
       selector: "edge.ruta",
-      style: { "line-color": colores.exito, color: colores.exito },
+      style: { "line-color": colores.exito },
     },
     { // Nodo que forma parte de la ruta ganadora
       selector: "node.conectado",
@@ -307,7 +302,6 @@ export class Tablero {
           source: c.a,
           target: c.b,
           peso: 1 + (c.s - umbral) / 12,
-          etiqueta: `${c.s}%`,
         },
       });
     });

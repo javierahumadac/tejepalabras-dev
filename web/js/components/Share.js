@@ -296,10 +296,6 @@ function restaurarPosiciones(cytoscape, posiciones) {
   }
 }
 
-/**
- * Reorienta el grafo como el tablero: origen arriba-izquierda, destino abajo-derecha.
- * Cola puede haber dejado los objetivos en cualquier lado; esto los ancla.
- */
 function anclarOrigenDestino(cytoscape, origen, destino) {
   const nodoOrigen = cytoscape.getElementById(origen);
   const nodoDestino = cytoscape.getElementById(destino);

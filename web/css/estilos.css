@@ -648,8 +648,8 @@ body.entrada-activa footer {
   background-color: currentColor;
 }
 .modal-enlaces .icono-kofi {
-  -webkit-mask: url("../icons/kofi.svg") center / contain no-repeat;
-  mask: url("../icons/kofi.svg") center / contain no-repeat;
+  -webkit-mask: url("../assets/icons/kofi.svg") center / contain no-repeat;
+  mask: url("../assets/icons/kofi.svg") center / contain no-repeat;
 }
 
 .puntaje-total {
